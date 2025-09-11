@@ -1,0 +1,17 @@
+[project]
+name = "renovation_tracker"
+version = "0.1.0"
+description = "Renovation Tracker API to detect and extract renovation information"
+readme = "README.md"
+authors = []
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "sqlalchemy",
+    "databases[sqlite]"
+]
+
+[tool.uv]
+package = true
