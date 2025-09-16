@@ -12,6 +12,3 @@ dependencies = [
     "sqlalchemy",
     "databases[sqlite]"
 ]
-
-[tool.uv]
-package = true
