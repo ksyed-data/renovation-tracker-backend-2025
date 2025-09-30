@@ -38,8 +38,8 @@ RENOVATION_CATEGORIES: Dict[str, List[str]] = {
     "attic": ["attic", "insulation"],
 }
 
-STRONG_VERBS = ["renovated", "remodeled", "rebuilt", "replaced", "installed", "refinished", "gut rehab", "gut-rehab"]
-MEDIUM_VERBS = ["updated", "updated", "refreshed", "upgraded", "modernized"]
+STRONG_VERBS = ["renovated", "remodeled", "rebuilt", "replaced", "installed", "added", "refinished", "gut rehab", "gut-rehab"]
+MEDIUM_VERBS = ["updated", "updated", "refreshed", "upgraded", "modernized", "altered"]
 
 
 def _find_sentences_with_keywords(text: str, keywords: List[str]) -> List[str]:
