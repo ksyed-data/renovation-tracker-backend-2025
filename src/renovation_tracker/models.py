@@ -5,12 +5,13 @@ from database import Base
 class Listing(Base):
     __tablename__ = "listings"
 
-    listing_id = Column(Integer, primary_key=True,index=True)
+    listing_id = Column(Integer, primary_key=True,index=True, autoincrement=True)
+    url = Column(String(100),nullable=False)
     address = Column(String(100),unique=True,nullable=False)
     description = Column(String(300),nullable=False)
     price = Column(Double)
-    renovations = relationship('Renovations', back_populates='listings')
-    photos = relationship('Photos', back_populates='listings')
+    renovations = relationship('Renovations', back_populates='listing')
+    photos = relationship('Photos', back_populates='listing')
 
 class Renovations(Base):
     __tablename__ = "renovations"
