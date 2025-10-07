@@ -18,10 +18,11 @@ class RenovationCreate(BaseModel):
 # Schema for renovations READ
 class RenovationRead(Renovation):
     renovation_id: int 
+    class Config:
+        orm_mode = True 
 
 #Schema for renovations UPDATE
 class RenovationUpdate(BaseModel):
-    listing_id: int
     bathroom: Optional[bool]
     kitchen: Optional[bool]
     living_room: Optional[bool]

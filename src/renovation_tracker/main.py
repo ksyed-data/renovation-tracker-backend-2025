@@ -5,6 +5,8 @@ import models
 from pydantic import BaseModel, HttpUrl, Field
 from pydantic_models import *
 from typing import Annotated
+import httpx
+
 
 
 models.Base.metadata.create_all(bind = engine)
@@ -16,18 +18,16 @@ def get_db():
         db.close()
 
 db_dependency = Annotated[Session, Depends(get_db)]
-
-
-    
 api = FastAPI()
-# CREATE Listing
-@api.post("/listings/", response_model=Listing)
+
+# CREATE Listings
+@api.post("/listings/", response_model=ListingRead)
 async def create_listing(listing:Listing, db: db_dependency):
     # TODO Page Scraping
     db_listing = models.Listing(**listing.dict())
     db.add(db_listing)
     db.commit()
-    db.refresh(db_listing)  # gets updated fields like auto-incremented id
+    db.refresh(db_listing)
     return db_listing
 
 
@@ -54,7 +54,6 @@ async def update_listing(listing_id: int, listing:ListingUpdate, db: db_dependen
         setattr(findListing,keys,value)
     db.commit()
     db.refresh(findListing)
-    # TODO Query db for listing and update listing
     return findListing
 
 
@@ -66,10 +65,51 @@ async def delete_item(listing_id: int, db: db_dependency):
     db.commit()
     return {"message": "Listing Deleted"}
 
+# CREATE Renovation
+@api.post("/renovations/", response_model=RenovationRead)
+async def create_renovation(renovation: Renovation, db: db_dependency):
+    db_renovation = models.Renovations(**renovation.dict())
+    db.add(db_renovation)
+    db.commit()
+    db.refresh(db_renovation)
+    return db_renovation
 
+# READ renovations for given listing id
+@api.get("/listings/{listing_id}/renovations", response_model=list[RenovationRead])
+async def get_renovation(listing_id: int, db: db_dependency):
+    listing = db.query(models.Listing).filter(models.Listing.listing_id == listing_id).first()
+    return listing.renovations
 
+# READ renovations for given renovation id
+@api.get("/renovations/{renovation_id}", response_model=RenovationRead)
+async def get_renovationWID(renovation_id: int, db: db_dependency):
+    renovation = db.query(models.Renovations).filter(models.Renovations.renovation_id == renovation_id).first()
+    return renovation
 
+# UPDATE Renovation
+@api.put("/renovations/{renovation_id}", response_model=RenovationRead)
+async def update_renovation(renovation_id: int, renovation: RenovationUpdate, db: db_dependency):
+    findRenovation = db.query(models.Renovations).filter(models.Renovations.renovation_id == renovation_id).first()
+    update_renovation = renovation.dict(exclude_unset=True)
+    for keys, value in update_renovation.items():
+        setattr(findRenovation,keys,value)
+    db.commit()
+    db.refresh(findRenovation)
+    return findRenovation
 
+# DELETE Renovation
+@api.delete("/renovations/{renovation_id}")
+async def delete_renovation(renovation_id: int, db: db_dependency):
+    renovation = db.query(models.Renovations).filter(models.Renovations.renovation_id == renovation_id).first()
+    db.delete(renovation)
+    db.commit()
+    return {"message": "Renovation Deleted"}
 
-
+#Example web scrapping not completly implemented
+@api.post("/example/")
+async def scrape_web(url: str):
+    with httpx.Client(follow_redirects=True, timeout=10) as client:
+        response = client.get(url)
+        print(response.status_code)
+        return {"response:", response.text}
 
