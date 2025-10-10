@@ -15,9 +15,11 @@ class Listing(BaseModel):
 class ListingCreate(BaseModel):
     url: HttpUrl
 
-# Schema for listing READ
+# Schema for listing READ / Delete
 class ListingRead(Listing):
     listing_id:int
+    class Config:
+        orm_mode = True 
 
 # Schema for listing UPDATE
 class ListingUpdate(BaseModel):
@@ -26,9 +28,6 @@ class ListingUpdate(BaseModel):
     description: Optional[str] = None
     price: Optional[float] = None
 
-# Schema for listing DELETE
-class ListingDelete(Listing):
-    listing_id:str
 
 
 

@@ -15,11 +15,11 @@ class Listing(Base):
 
 class Renovations(Base):
     __tablename__ = "renovations"
-    renovation_id = Column(Integer, primary_key = True, index = True)
+    renovation_id = Column(Integer, primary_key = True, index = True, autoincrement=True)
     bedroom = Column(Boolean, default = False)
     kitchen = Column(Boolean, default = False)
     living_room = Column(Boolean, default = False)
-    bedroom = Column(Boolean, default = False)
+    bathroom = Column(Boolean, default = False)
     basement = Column(Boolean, default = False)
     listing_id = Column(Integer, ForeignKey('listings.listing_id'))
     listing = relationship('Listing', back_populates = 'renovations')
