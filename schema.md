@@ -13,6 +13,8 @@
     property_id: int (FK → Property.id)
     url: string (location of the photo)
     room_type: string (nullable, filled after classification)
+    created_at: datetime
+    updated_at: datetime
 
 #### Renovation Table
     id: int (PK)
@@ -22,6 +24,8 @@
     living_room: boolean
     bedroom: boolean
     basement: boolean
+    created_at: datetime
+    updated_at: datetime
 
 
 ## Backend Routes
