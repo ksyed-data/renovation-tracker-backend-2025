@@ -61,9 +61,26 @@ api = FastAPI()
 
 # CREATE Listings
 @api.post("/listings/", response_model=ListingRead)
-async def create_listing(listing:Listing, db: Annotated[Session, Depends(get_db)]):
-    # TODO Page Scraping
-    db_listing = models.Listing(**listing.dict())
+async def create_listing(url: str, db: Annotated[Session, Depends(get_db)]):
+    response = get_source(url)
+    soup = BeautifulSoup(response, 'html.parser')
+    title_tag = soup.find("h1")
+    address = soup.find("span", {"class": "property-info-address-main"})
+    city_state = soup.find("span",{"class": "property-info-address-citystatezip"})
+    city_state_zip = ""
+    for child in city_state:
+        city_state_zip+= (child.get_text(strip=True)+" ")
+    description = soup.find("p",{"class": "ldp-description-text"})
+    price = soup.find("span",{"class": "property-info-price"})
+    price_numeric = float(price.get_text(strip = True).replace("$", "").replace(",", ""))
+
+
+    db_listing = models.Listing(
+        url=url,
+        address=address.get_text(strip=True) + " " + city_state_zip,
+        description=description.get_text(strip=True),
+        price=price_numeric
+    )
     try:
         db.add(db_listing)
         db.commit()
@@ -73,7 +90,7 @@ async def create_listing(listing:Listing, db: Annotated[Session, Depends(get_db)
         db.rollback()
         raise HTTPException(
             status_code=500,
-            detail="Error inserting listing"
+            detail=f"Error inserting listing: {e}"
         )
    
 
