@@ -1,11 +1,13 @@
 from __future__ import annotations
-
+from dotenv import load_dotenv
 from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import Any, Dict
+from pathlib import Path
 
 from renovation_tracker.nlp_predict import extract_renovations
-
+# load project-root .env
+load_dotenv(Path(__file__).resolve().parents[2] / ".env")
 
 class PredictRequest(BaseModel):
     description: str

@@ -10,5 +10,9 @@ dependencies = [
     "uvicorn",
     "pydantic",
     "sqlalchemy",
-    "databases[sqlite]"
+    "databases[sqlite]",
+    "ipykernel>=7.0.1",
+    "dotenv>=0.9.9",
+    "requests>=2.32.5",
+    "openai>=2.3.0",
 ]
