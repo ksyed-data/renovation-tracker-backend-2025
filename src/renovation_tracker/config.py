@@ -1,1 +1,1 @@
-DATABASE_URL = 'mysql+pymysql://root:Renovation$tracker@localhost:3306/renovationtracker'
+DATABASE_URL = 'mysql+pymysql://root:renovation_tracker2025@localhost:3306/renovation_trackerdb'
