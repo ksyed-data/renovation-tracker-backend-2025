@@ -1,4 +1,4 @@
-
+from __future__ import annotations
 from fastapi import FastAPI, Depends, HTTPException
 from database import engine, Session
 import models
@@ -7,12 +7,12 @@ from pydantic_models.renovations import Renovation, RenovationRead, RenovationUp
 from typing import Annotated
 import httpx
 
-from __future__ import annotations
+
 
 from pydantic import BaseModel
 from typing import Any, Dict
 
-from renovation_tracker.nlp_predict import extract_renovations
+from nlp_predict import extract_renovations
 
 
 class PredictRequest(BaseModel):
@@ -205,7 +205,7 @@ async def delete_renovation(renovation_id: int, db: Annotated[Session, Depends(g
         )
 
 #Example web scrapping not completly implemented
-@api.post("/example/")
+@api.get("/example/")
 async def scrape_web(url: str):
     with httpx.Client(follow_redirects=True, timeout=10) as client:
         response = client.get(url)
