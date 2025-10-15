@@ -9,6 +9,9 @@ class Listing(BaseModel):
     address: str
     description: str
     price: float
+    bedroom: float
+    bathroom: float
+    year_built: int
  #   photos: list[str]
 
 # Schema for listing CREATE
@@ -27,6 +30,9 @@ class ListingUpdate(BaseModel):
     address: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
+    bedroom: Optional[float] = None
+    bathroom: Optional[float] = None
+    date_built: Optional[int] = None
 
 
 

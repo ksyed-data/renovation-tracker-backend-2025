@@ -11,7 +11,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
-
+import re
 
 from pydantic import BaseModel
 from typing import Any, Dict
@@ -47,7 +47,6 @@ def main():
 
 
 
-
 models.Base.metadata.create_all(bind = engine)
 def get_db():
     db = Session()
@@ -62,9 +61,10 @@ api = FastAPI()
 # CREATE Listings
 @api.post("/listings/", response_model=ListingRead)
 async def create_listing(url: str, db: Annotated[Session, Depends(get_db)]):
+    # Web Scraping
     response = get_source(url)
+    # Uses beautifulsoup to obtain info from html
     soup = BeautifulSoup(response, 'html.parser')
-    title_tag = soup.find("h1")
     address = soup.find("span", {"class": "property-info-address-main"})
     city_state = soup.find("span",{"class": "property-info-address-citystatezip"})
     city_state_zip = ""
@@ -73,13 +73,21 @@ async def create_listing(url: str, db: Annotated[Session, Depends(get_db)]):
     description = soup.find("p",{"class": "ldp-description-text"})
     price = soup.find("span",{"class": "property-info-price"})
     price_numeric = float(price.get_text(strip = True).replace("$", "").replace(",", ""))
+    bedroom_bathroom = soup.find_all("span",{"class": "property-info-feature"})
+    bedroom = bedroom_bathroom[0].find("span",{"class": "property-info-feature-detail"})
+    bathroom = bedroom_bathroom[1].find("span",{"class": "property-info-feature-detail"})
+    year_container = soup.find(lambda tag: tag.name == "li" and "amenities-detail" in tag.get("class", []) and "Built in" in tag.text)
+    year_built = re.search(r"Built in\s+(\d+)", year_container.get_text(strip=True))
 
-
+    # Create listing object from scraped data and add to db
     db_listing = models.Listing(
         url=url,
         address=address.get_text(strip=True) + " " + city_state_zip,
         description=description.get_text(strip=True),
-        price=price_numeric
+        price=price_numeric,
+        bedroom = float(bedroom.get_text(strip=True)),
+        bathroom = float(bathroom.get_text(strip=True)),
+        year_built = year_built.group(1)
     )
     try:
         db.add(db_listing)
@@ -225,7 +233,7 @@ async def delete_renovation(renovation_id: int, db: Annotated[Session, Depends(g
             detail=f"Error occurred while deleting renovation with id {renovation_id}"
         )
 
-
+# Helper function to launch web driver used in selenium
 def get_source(url: str):
     try:
         driver = webdriver.Chrome(service = ChromeService(ChromeDriverManager().install()))
@@ -239,18 +247,9 @@ def get_source(url: str):
     
 
 
-#Example web scrapping not completly implemented
+#Example web scrapping for testing
 @api.get("/example/")
 async def scrape_web(url: str):
-    #async with httpx.AsyncClient(follow_redirects=True, timeout=10) as client:
-     #   headers = {
-      #      "User-Agent": (
-      #      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-      #      "AppleWebKit/537.36 (KHTML, like Gecko) "
-       #     "Chrome/128.0.0.0 Safari/537.36"
-        #    ),
-       #     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-       # }
     
     response = get_source(url)
     soup = BeautifulSoup(response, 'html.parser')
@@ -262,6 +261,11 @@ async def scrape_web(url: str):
         city_state_zip+= (child.get_text(strip=True)+" ")
     description = soup.find("p",{"class": "ldp-description-text"})
     price = soup.find("span",{"class": "property-info-price"})
-    
-    return {"response": address.get_text(strip=True)+" "+ city_state_zip+ " "+ description.get_text(strip=True)+" "+price.get_text(strip=True)}
+    bedroom_bathroom = soup.find_all("span",{"class": "property-info-feature"})
+    bedroom = bedroom_bathroom[0].find("span",{"class": "property-info-feature-detail"})
+    bathroom = bedroom_bathroom[1].find("span",{"class": "property-info-feature-detail"})
+    year_container = soup.find(lambda tag: tag.name == "li" and "amenities-detail" in tag.get("class", []) and "Built in" in tag.text)
+    year_built = re.search(r"Built in\s+(\d+)", year_container.get_text(strip=True))
+
+    return {"response": address.get_text(strip=True)+" "+ city_state_zip+ " "+ description.get_text(strip=True)+" "+price.get_text(strip=True)+ " "+bedroom.get_text(strip=True)+" "+bathroom.get_text(strip=True)+" "+year_built.group(1)}
 
