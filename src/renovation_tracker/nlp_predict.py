@@ -14,9 +14,8 @@ from typing import Dict, List, Tuple
 from datetime import datetime
 import os
 import json
-from pathlib import Path
 from dotenv import load_dotenv
-import requests
+import openai #get rid of if/when we get vcu custom llm?
 
 # load .env from project root (adjust if needed)
 load_dotenv()
@@ -25,6 +24,7 @@ load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")  # change if you prefer another model
 
-def extract_renovations():
-#blahblahblahblahblahblahplaceholder
-    return
+def extract_renovations(data_from_json):
+#ver 0.1 placeholder
+    messages = [
+        {"role": "system", "content": "You are an expert at extracting renovation information from property descriptions."},]
