@@ -61,20 +61,32 @@ api = FastAPI()
 
 # CREATE Listings
 @api.post("/listings/", response_model=ListingRead)
-async def create_listing(listing:Listing, db: Annotated[Session, Depends(get_db)]):
+async def create_listing(url:str, db: Annotated[Session, Depends(get_db)]):
     # TODO Page Scraping
-    db_listing = models.Listing(**listing.dict())
-    try:
-        db.add(db_listing)
-        db.commit()
-        db.refresh(db_listing)
-        return db_listing
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail="Error inserting listing"
-        )
+    response = get_source(url)
+    soup = BeautifulSoup(response, 'html.parser')
+    title_tag = soup.find("h1")
+    address = soup.find("span", {"class": "property-info-address-main"})
+    city_state = soup.find("span",{"class": "property-info-address-citystatezip"})
+    city_state_zip = ""
+    for child in city_state:
+        city_state_zip+= (child.get_text(strip=True)+" ")
+    description = soup.find("p",{"class": "ldp-description-text"})
+    price = soup.find("span",{"class": "property-info-price"})
+
+    db_listing = models.Listing(
+        url=url,
+        address=address.get_text(strip=True)+" "+ city_state_zip,
+        description=description.get_text(strip=True),
+        price=float(price.get_text(strip=True).replace("$","").replace(",",""))
+    )
+    
+    db.add(db_listing)
+    db.commit()
+    db.refresh(db_listing)
+    
+    return db_listing
+    
    
 
 # READ all Listings
@@ -225,16 +237,6 @@ def get_source(url: str):
 #Example web scrapping not completly implemented
 @api.get("/example/")
 async def scrape_web(url: str):
-    #async with httpx.AsyncClient(follow_redirects=True, timeout=10) as client:
-     #   headers = {
-      #      "User-Agent": (
-      #      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-      #      "AppleWebKit/537.36 (KHTML, like Gecko) "
-       #     "Chrome/128.0.0.0 Safari/537.36"
-        #    ),
-       #     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-       # }
-    
     response = get_source(url)
     soup = BeautifulSoup(response, 'html.parser')
     title_tag = soup.find("h1")
