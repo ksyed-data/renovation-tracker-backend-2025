@@ -10,6 +10,9 @@ class Listing(Base):
     address = Column(String(100),unique=True,nullable=False)
     description = Column(String(5000),nullable=False)
     price = Column(Double)
+    bedroom = Column(Double)
+    bathroom = Column(Double)
+    year_built = Column(Integer)
     renovations = relationship('Renovations', back_populates='listing')
     photos = relationship('Photos', back_populates='listing')
 
