@@ -1,0 +1,1 @@
+DATABASE_URL = 'mysql+pymysql://root:Renovation$tracker@localhost:3306/renovationtracker'
