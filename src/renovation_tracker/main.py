@@ -4,18 +4,20 @@ from database import engine, Session
 import models
 from pydantic_models.listings import Listing, ListingRead, ListingUpdate
 from pydantic_models.renovations import Renovation, RenovationRead, RenovationUpdate
+from pydantic_models.photos import Photos, PhotosRead
 from typing import Annotated
-import httpx
 from bs4 import BeautifulSoup
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 import re
-
+from PIL import Image
+import requests
+from io import BytesIO
 from pydantic import BaseModel
 from typing import Any, Dict
-
+from ultralytics import YOLO
 from nlp_predict import extract_renovations
 
 
@@ -28,6 +30,7 @@ class PredictResponse(BaseModel):
 
 
 app = FastAPI(title="Renovation Tracker API")
+yolo_model = YOLO("yolo_models/best.pt")
 
 
 @app.get("/", tags=["health"])
@@ -123,16 +126,22 @@ async def create_listing(listing: Listing, db: Annotated[Session, Depends(get_db
         raise HTTPException(status_code=500, detail=f"Error inserting listing: {e}")
 
 
-# CREATE Listing with URL
+# CREATE Listing with URL also creates Photos
 @api.post("/listings/url", response_model=ListingRead)
 async def create_url_listing(url: str, db: Annotated[Session, Depends(get_db)]):
     # Create listing object using web scraping helper function
-    db_listing = url_listing(url)
+    url_return = url_listing(url)
     try:
-        db.add(db_listing)
+        db.add(url_return["listing"])
         db.commit()
-        db.refresh(db_listing)
-        return db_listing
+        db.refresh(url_return["listing"])
+        for img_url in url_return["photos_list"]:
+            db_photo = models.Photos(
+                url=img_url, listing_id=url_return["listing"].listing_id
+            )
+            db.add(db_photo)
+        db.commit()
+        return url_return["listing"]
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error inserting listing: {e}")
@@ -185,7 +194,7 @@ async def update_listing(
         db.rollback()
         raise HTTPException(
             status_code=500,
-            detail=f"Error occurred while updating listing {listing_id}",
+            detail=f"Error occurred while updating listing {listing_id} {e}",
         )
 
 
@@ -319,6 +328,70 @@ async def delete_renovation(
         )
 
 
+# CREATE Photo Entry with custom input
+@api.post("/photos/", response_model=PhotosRead)
+async def create_photo(photo: Photos, db: Annotated[Session, Depends(get_db)]):
+    db_photos = models.Photos(**photo.dict())
+    try:
+        db.add(db_photos)
+        db.commit()
+        db.refresh(db_photos)
+        return db_photos
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Error inserting photo: {e}")
+
+
+# READ photos for given listing id
+@api.get("/listings/{listing_id}/photos", response_model=list[PhotosRead])
+async def get_photos(listing_id: int, db: Annotated[Session, Depends(get_db)]):
+    listing = (
+        db.query(models.Listing).filter(models.Listing.listing_id == listing_id).first()
+    )
+    if listing is None:
+        raise HTTPException(
+            status_code=404, detail=f"Listing with id {listing_id} not found"
+        )
+    return listing.photos
+
+
+# Photo inference function to return roomtype given photoid
+@api.put("/photos/inference")
+async def photo_inference(photo_id: int, db: Annotated[Session, Depends(get_db)]):
+    findPhoto = (
+        db.query(models.Photos).filter(models.Photos.photo_id == photo_id).first()
+    )
+    if findPhoto is None:
+        raise HTTPException(
+            status_code=404, detail="Photo with id {photo_id} not found"
+        )
+    if findPhoto.room_type is None:
+        try:
+            room = get_room(findPhoto.url)
+            setattr(findPhoto, "room_type", room)
+            db.commit()
+            db.refresh(findPhoto)
+            return room
+        except Exception as e:
+            db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Error occurred while updating photo with id {photo_id}",
+            )
+    else:
+        return findPhoto.room_type
+
+
+# Helper function to obtain top matching room classification given image url
+def get_room(url: str):
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    getImage = requests.get(url, headers=headers, stream=True, timeout=10)
+    image = Image.open(BytesIO(getImage.content))
+    results = yolo_model.predict(image)
+    top1 = results[0].probs.top1
+    return results[0].names[top1]
+
+
 # Helper function to launch web driver used in selenium
 def get_source(url: str):
     try:
@@ -334,7 +407,7 @@ def get_source(url: str):
         driver.quit()
 
 
-# Helper function that takes url and returns listing object to be inerted into db
+# Helper function that takes url and returns listing object to be inerted into db and list of photo urls to be added as photos
 def url_listing(url: str):
     # Web Scraping
     response = get_source(url)
@@ -361,6 +434,18 @@ def url_listing(url: str):
         and "Built in" in tag.text
     )
     year_built = re.search(r"Built in\s+(\d+)", year_container.get_text(strip=True))
+    image_list = []
+    image_container = soup.find(
+        "div", {"class": "embla__container primary-carousel-container"}
+    )
+    slides = image_container.find_all("div")
+    for div in slides:
+        images = div.find_all(
+            "img", {"class": "primary-carousel-slide-img carousel-item"}
+        )
+        for img in images:
+            image_list.append(img["src"])
+
     db_listing = models.Listing(
         url=url,
         address=address.get_text(strip=True) + " " + city_state_zip,
@@ -370,7 +455,7 @@ def url_listing(url: str):
         bathroom=float(bathroom.get_text(strip=True)),
         year_built=year_built.group(1),
     )
-    return db_listing
+    return {"listing": db_listing, "photos_list": image_list}
 
 
 # Example web scrapping for testing

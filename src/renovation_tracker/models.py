@@ -32,8 +32,8 @@ class Renovations(Base):
 
 class Photos(Base):
     __tablename__ = "photos"
-    photo_id = Column(Integer, primary_key=True, index=True)
-    url = Column(String(255), nullable=False)
+    photo_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
+    url = Column(String(200), nullable=False)
     room_type = Column(String(100))
     listing_id = Column(Integer, ForeignKey("listings.listing_id"))
     listing = relationship("Listing", back_populates="photos")
