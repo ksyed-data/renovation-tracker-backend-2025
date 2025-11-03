@@ -1,10 +1,18 @@
 from __future__ import annotations
 from fastapi import FastAPI, Depends, HTTPException
-from database import engine, Session
-import models
-from pydantic_models.listings import Listing, ListingRead, ListingUpdate
-from pydantic_models.renovations import Renovation, RenovationRead, RenovationUpdate
-from pydantic_models.photos import Photos, PhotosRead
+from renovation_tracker.database import engine, Session
+import renovation_tracker.models as models
+from renovation_tracker.pydantic_models.listings import (
+    Listing,
+    ListingRead,
+    ListingUpdate,
+)
+from renovation_tracker.pydantic_models.renovations import (
+    Renovation,
+    RenovationRead,
+    RenovationUpdate,
+)
+from renovation_tracker.pydantic_models.photos import Photos, PhotosRead, PhotosUpdate
 from typing import Annotated
 from bs4 import BeautifulSoup
 from selenium import webdriver
@@ -18,7 +26,9 @@ from io import BytesIO
 from pydantic import BaseModel
 from typing import Any, Dict
 from ultralytics import YOLO
-from nlp_predict import extract_renovations
+from renovation_tracker.nlp_predict import extract_renovations
+import importlib.resources as resources
+from sqlalchemy import inspect
 
 
 class PredictRequest(BaseModel):
@@ -29,29 +39,32 @@ class PredictResponse(BaseModel):
     result: Dict[str, Any]
 
 
-app = FastAPI(title="Renovation Tracker API")
-yolo_model = YOLO("yolo_models/best.pt")
+# app = FastAPI(title="Renovation Tracker API")
+api = FastAPI()
+with resources.path("renovation_tracker.yolo_models", "best.pt") as model_path:
+    yolo_model = YOLO(model_path)
 
 
-@app.get("/", tags=["health"])
+@api.get("/", tags=["health"])
 def health():
     return {"status": "ok"}
 
 
-@app.post("/predict-renovations", response_model=PredictResponse)
+@api.post("/predict-renovations", response_model=PredictResponse)
 def predict_renovations(req: PredictRequest):
     """Accepts a property description and returns structured renovation info."""
     result = extract_renovations(req.description)
     return {"result": result}
 
 
-def main():
-    print(
-        "This module exposes a FastAPI app. Run with: uvicorn renovation_tracker.main:app --reload"
-    )
+def create_tables():
+    models.Base.metadata.create_all(bind=engine)
 
 
-models.Base.metadata.create_all(bind=engine)
+inspector = inspect(engine)
+tables = inspector.get_table_names
+if not tables:
+    create_tables
 
 
 def get_db():
@@ -63,7 +76,6 @@ def get_db():
 
 
 db_dependency = Annotated[Session, Depends(get_db)]
-api = FastAPI()
 
 
 # Create listing with custom inputs
@@ -104,8 +116,8 @@ async def create_url_listing(url: str, db: Annotated[Session, Depends(get_db)]):
 
 # READ all Listings
 @api.get("/listings/", response_model=list[ListingRead])
-async def read_listing(db: Annotated[Session, Depends(get_db)]):
-    allListings = db.query(models.Listing).all()
+async def read_listing(db: Annotated[Session, Depends(get_db)], limit: int = 25):
+    allListings = db.query(models.Listing).limit(limit).all()
     return allListings
 
 
@@ -117,7 +129,7 @@ async def list_listing(listing_id: int, db: Annotated[Session, Depends(get_db)])
     )
     if listing is None:
         raise HTTPException(
-            status_code=404, detail="Listing with id {listing_id} not found"
+            status_code=404, detail=f"Listing with id {listing_id} not found"
         )
 
     return listing
@@ -133,7 +145,7 @@ async def update_listing(
     )
     if findListing is None:
         raise HTTPException(
-            status_code=404, detail="Listing to update with id {listing_id} not found"
+            status_code=404, detail=f"Listing to update with id {listing_id} not found"
         )
 
     update_listing = listing.dict(exclude_unset=True)
@@ -209,7 +221,7 @@ async def get_renovation(listing_id: int, db: Annotated[Session, Depends(get_db)
 
 # READ renovations for given renovation id
 @api.get("/renovations/{renovation_id}", response_model=RenovationRead)
-async def get_renovationWID(
+async def get_renovation_by_id(
     renovation_id: int, db: Annotated[Session, Depends(get_db)]
 ):
     renovation = (
@@ -299,15 +311,34 @@ async def create_photo(photo: Photos, db: Annotated[Session, Depends(get_db)]):
 
 # READ photos for given listing id
 @api.get("/listings/{listing_id}/photos", response_model=list[PhotosRead])
-async def get_photos(listing_id: int, db: Annotated[Session, Depends(get_db)]):
+async def get_photos(
+    listing_id: int, db: Annotated[Session, Depends(get_db)], limit: int = 120
+):
     listing = (
-        db.query(models.Listing).filter(models.Listing.listing_id == listing_id).first()
+        db.query(models.Listing)
+        .filter(models.Listing.listing_id == listing_id)
+        .limit(limit)
+        .first()
     )
     if listing is None:
         raise HTTPException(
             status_code=404, detail=f"Listing with id {listing_id} not found"
         )
     return listing.photos
+
+
+# READ photo given photo id
+@api.get("/photos/{photo_id}", response_model=PhotosRead)
+async def get_photo_by_id(photo_id: int, db: Annotated[Session, Depends(get_db)]):
+    get_photo = (
+        db.query(models.Photos).filter(models.Photos.photo_id == photo_id).first()
+    )
+    if get_photo is None:
+        raise HTTPException(
+            status_code=404, detail=f"Photo with id {photo_id} not found"
+        )
+
+    return get_photo
 
 
 # Photo inference function to return roomtype given photoid
@@ -318,7 +349,7 @@ async def photo_inference(photo_id: int, db: Annotated[Session, Depends(get_db)]
     )
     if findPhoto is None:
         raise HTTPException(
-            status_code=404, detail="Photo with id {photo_id} not found"
+            status_code=404, detail=f"Photo with id {photo_id} not found"
         )
     if findPhoto.room_type is None:
         try:
@@ -335,6 +366,56 @@ async def photo_inference(photo_id: int, db: Annotated[Session, Depends(get_db)]
             )
     else:
         return findPhoto.room_type
+
+
+# Update Photo Entry with custom input
+@api.put("/photos/{photo_id}", response_model=PhotosRead)
+async def update_photo(
+    photo_id: int, photo: PhotosUpdate, db: Annotated[Session, Depends(get_db)]
+):
+    find_photo = (
+        db.query(models.Photos).filter(models.Photos.photo_id == photo_id).first()
+    )
+    if find_photo is None:
+        raise HTTPException(
+            status_code=404, detail=f"Photo to update with id {photo_id} not found"
+        )
+    db_photos = photo.dict(exclude_unset=True)
+    try:
+        for keys, value in db_photos.items():
+            setattr(find_photo, keys, value)
+        db.commit()
+        db.refresh(find_photo)
+        return find_photo
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error occurred while updating photo {photo_id} {e}",
+        )
+
+
+# DELETE Photo
+@api.delete("/photos/{photo_id}")
+async def delete_photo(photo_id: int, db: Annotated[Session, Depends(get_db)]):
+    find_photo = (
+        db.query(models.Photos).filter(models.Photos.photo_id == photo_id).first()
+    )
+    if find_photo is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Photo to delete with id {photo_id} not found",
+        )
+    try:
+        db.delete(find_photo)
+        db.commit()
+        return {"message": "Photo Deleted"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error occurred while deleting photo with id {photo_id}",
+        )
 
 
 # Helper function to obtain top matching room classification given image url
@@ -375,25 +456,48 @@ def url_listing(url: str):
         city_state_zip += child.get_text(strip=True) + " "
     description = soup.find("p", {"class": "ldp-description-text"})
     price = soup.find("span", {"class": "property-info-price"})
-    price_numeric = float(price.get_text(strip=True).replace("$", "").replace(",", ""))
-    bedroom_bathroom = soup.find_all("span", {"class": "property-info-feature"})
-    bedroom = bedroom_bathroom[0].find(
-        "span", {"class": "property-info-feature-detail"}
+    price_numeric = (
+        float(price.get_text(strip=True).replace("$", "").replace(",", ""))
+        if price
+        else None
     )
-    bathroom = bedroom_bathroom[1].find(
-        "span", {"class": "property-info-feature-detail"}
+    bedroom_bathroom = soup.find_all("span", {"class": "property-info-feature"})
+    bedroom = (
+        float(
+            bedroom_bathroom[0]
+            .find("span", {"class": "property-info-feature-detail"})
+            .get_text(strip=True)
+        )
+        if bedroom_bathroom
+        and bedroom_bathroom[0].find("span", {"class": "feature-beds"})
+        else None
+    )
+    bathroom = (
+        float(
+            bedroom_bathroom[1]
+            .find("span", {"class": "property-info-feature-detail"})
+            .get_text(strip=True)
+        )
+        if bedroom_bathroom
+        and bedroom_bathroom[1].find("span", {"class": "feature-baths"})
+        else None
     )
     year_container = soup.find(
         lambda tag: tag.name == "li"
         and "amenities-detail" in tag.get("class", [])
         and "Built in" in tag.text
     )
-    year_built = re.search(r"Built in\s+(\d+)", year_container.get_text(strip=True))
+    year_built = None
+    if year_container:
+        year_built = re.search(
+            r"Built in\s+(\d+)", year_container.get_text(strip=True)
+        ).group(1)
+
     image_list = []
     image_container = soup.find(
         "div", {"class": "embla__container primary-carousel-container"}
     )
-    slides = image_container.find_all("div")
+    slides = image_container.find_all("div") if image_container else None
     for div in slides:
         images = div.find_all(
             "img", {"class": "primary-carousel-slide-img carousel-item"}
@@ -406,9 +510,9 @@ def url_listing(url: str):
         address=address.get_text(strip=True) + " " + city_state_zip,
         description=description.get_text(strip=True),
         price=price_numeric,
-        bedroom=float(bedroom.get_text(strip=True)),
-        bathroom=float(bathroom.get_text(strip=True)),
-        year_built=year_built.group(1),
+        bedroom=bedroom,
+        bathroom=bathroom,
+        year_built=year_built,
     )
     return {"listing": db_listing, "photos_list": image_list}
 
@@ -466,5 +570,5 @@ async def scrape_web(url: str):
         + " "
         + year_built.group(1)
         + " "
-        + image_list[0]
+        + str(len(image_list))
     }

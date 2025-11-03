@@ -40,3 +40,15 @@ use the naming convention: {first initial}{last name} /new-feature. For example:
 Use commit messages that make sense and describe your changes. Make small commits. If your computer was lost or broke, is your branch committed and up to date?
 ### 3. Make your PR
 You want PR's to be small, digestable, and functional. Each PR needs to be reviewed by a member of your team (or CoStar sponsors). Reviewer should leave comments with suggestions and give merge approval.
+
+## Run fastAPI
+
+- Navigate to file root
+- Use these commands to build into installable package (should only have to do once unless dependencies change)
+
+uv build
+uv sync
+
+- Run with command
+
+uv run uvicorn renovation_tracker.main:api
