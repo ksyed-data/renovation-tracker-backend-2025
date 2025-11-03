@@ -1,9 +1,14 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.declarative import declarative_base
-from config import DATABASE_URL
+from dotenv import load_dotenv
+import os
+from pathlib import Path
 
-URL = DATABASE_URL
+env_path = Path(__file__).parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
+URL = os.getenv("DATABASE_URL")
 
 engine = create_engine(URL)
 
