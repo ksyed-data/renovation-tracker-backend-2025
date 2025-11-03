@@ -1,0 +1,35 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start MySQL Service",
+            "type": "shell",
+            "command": "podman compose down; podman compose up -d mysql; start http://localhost:8000/docs",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": [],
+            "isBackground": false,
+            "runOptions": {
+                "instanceLimit": 1
+            }
+        },
+        {
+            "label": "Stop MySQL Service",
+            "type": "shell",
+            "command": "podman compose down",
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            },
+            "problemMatcher": []
+        }
+    ]
+}
