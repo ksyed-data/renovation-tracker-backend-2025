@@ -62,9 +62,9 @@ def create_tables():
 
 
 inspector = inspect(engine)
-tables = inspector.get_table_names
+tables = inspector.get_table_names()
 if not tables:
-    create_tables
+    create_tables()
 
 
 def get_db():
