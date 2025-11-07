@@ -8,6 +8,10 @@ from pydantic_models.photos import Photos, PhotosRead
 from typing import Annotated
 from bs4 import BeautifulSoup
 from selenium import webdriver
+from selenium.webdriver.support import expected_conditions as EC
+import time
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
@@ -64,6 +68,65 @@ def get_db():
 
 db_dependency = Annotated[Session, Depends(get_db)]
 api = FastAPI()
+
+
+def scrape_all_images(url: str):
+    """Scrape all unique carousel image URLs across all slides."""
+
+    options = webdriver.ChromeOptions()
+    # options.add_argument("--headless")  # Uncomment to run headless
+    driver = webdriver.Chrome(
+        service=ChromeService(ChromeDriverManager().install()), options=options
+    )
+    driver.implicitly_wait(10)
+
+    try:
+        driver.get(url)
+        image_urls = set()
+        seen_slides = set()
+
+        while True:
+            # Grab all carousel slides
+            slides = driver.find_elements(By.CSS_SELECTOR, "div.primary-carousel-slide")
+
+            for slide in slides:
+                slide_id = slide.get_attribute("data-slide")
+                if not slide_id or slide_id in seen_slides:
+                    continue
+
+                # Mark slide as seen
+                seen_slides.add(slide_id)
+
+                # Grab all images in this slide
+                imgs = slide.find_elements(
+                    By.CSS_SELECTOR, "img.primary-carousel-slide-img"
+                )
+                for img in imgs:
+                    src = img.get_attribute("src")
+                    if src and src.startswith("http") and "spacer.gif" not in src:
+                        image_urls.add(src)
+
+            # If all slides have been seen, stop
+            if len(seen_slides) >= len(slides):
+                print(f"Processed all {len(slides)} slides — stopping.")
+                break
+
+            # Click the "Next" button
+            next_btn = driver.find_element(
+                By.CSS_SELECTOR, "button.primary-carousel-right-nav.right-nav"
+            )
+            if not next_btn:
+                print("Next button not found — stopping.")
+                break
+
+            driver.execute_script("arguments[0].click();", next_btn)
+            time.sleep(1.5)  # allow images to load
+
+        print(f"Found {len(image_urls)} unique image URLs.")
+        return list(image_urls)
+
+    finally:
+        driver.quit()
 
 
 # Create listing with custom inputs
@@ -484,18 +547,8 @@ async def scrape_web(url: str):
         and "Built in" in tag.text
     )
     year_built = re.search(r"Built in\s+(\d+)", year_container.get_text(strip=True))
-    carousel_section = soup.find("section", {"id": "ldp-embla-carousel"})
-    image_urls = []
 
-    if carousel_section:
-        # Find all <img> tags inside the section
-        imgs = carousel_section.find_all("img")
-        # Extract only valid URLs
-        image_urls = [
-            img.get("src")
-            for img in imgs
-            if img.get("src") and img.get("src").startswith("http")
-        ]
+    image_urls = scrape_all_images(url)
 
     return {
         "response": (
