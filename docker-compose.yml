@@ -9,7 +9,7 @@ services:
             MYSQL_USER: dev_user
             MYSQL_PASSWORD: dev_user_password
         ports:
-            - '3306:3306'
+            - '3307:3306'
         volumes:
             - mysql_data:/var/lib/mysql
         healthcheck:
@@ -34,7 +34,7 @@ services:
             dockerfile: Dockerfile
         container_name: renovation_tracker_api
         environment:
-            DATABASE_URL: mysql+pymysql://dev_user:dev_user_password@localhost:3306/renovation_tracker_db
+            DATABASE_URL: mysql+pymysql://dev_user:dev_user_password@mysql:3306/renovation_tracker_db
         depends_on:
             mysql:
                 condition: service_healthy

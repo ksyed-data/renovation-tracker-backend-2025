@@ -16,12 +16,10 @@
             ],
             "cwd": "${workspaceFolder}",
             "env": {
-                "DATABASE_URL": "mysql+pymysql://dev_user:dev_user_password@localhost:3306/renovation_tracker_db"
+                "DATABASE_URL": "mysql+pymysql://dev_user:dev_user_password@localhost:3307/renovation_tracker_db"
             },
             "jinja": true,
-            "justMyCode": true,
-            "preLaunchTask": "Start MySQL Service",
-            "postDebugTask": "Stop MySQL Service"
+            "justMyCode": true
         }
     ]
 }
