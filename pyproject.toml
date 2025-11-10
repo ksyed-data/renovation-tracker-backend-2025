@@ -23,3 +23,7 @@ dependencies = [
 
 [tool.uv]
 package = true
+native-tls = true
+
+[project.scripts]
+db-create = "renovation_tracker.main:create_tables"

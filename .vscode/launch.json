@@ -1,0 +1,25 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "FastAPI with Docker MySQL",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "uvicorn",
+            "args": [
+                "renovation_tracker.main:api",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
+                "--reload"
+            ],
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "DATABASE_URL": "mysql+pymysql://dev_user:dev_user_password@localhost:3307/renovation_tracker_db"
+            },
+            "jinja": true,
+            "justMyCode": true
+        }
+    ]
+}
