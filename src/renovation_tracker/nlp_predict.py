@@ -14,21 +14,14 @@ from datetime import datetime
 import os
 import json
 from dotenv import load_dotenv
-from pydantic import BaseModel, EmailStr, PositiveInt
+from pydantic import BaseModel, EmailStr, PositiveInt #look up how to do this
 import yaml
-import openai #get rid of if/when we get vcu custom llm?
-
-# load .env from project root (adjust if needed)
+import openai 
 load_dotenv()
 
-# simple config: name of model and api key read from env
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")  # change if you prefer another model
 
-#yaml file setup attempt xD
-
-
-#want to add more error catching and handling here!
 def parse_json(text: str) -> dict:
     text = (text or "").strip()
     try:
@@ -43,13 +36,11 @@ def parse_json(text: str) -> dict:
             raise ValueError(f"Failed to parse JSON: {e}\nOriginal text: {text}")
 
 #still kind of lame but to be honest i have been focusing on helper functions i might actually keep once vm is up and running
-
-#look into changing message into yaml file
 #create a pydantic model that had your model definition?
 #python sdk for openai
 #get it on a route
 
-def extract_renovations(data_from_json):
+def extract_renovations(description: str) -> RenovationPrediction:
 #ver 0.2
 #still using gpt for now until we have our own model set up
 
@@ -61,3 +52,9 @@ def extract_renovations(data_from_json):
         
     }
 ]
+class RenovationPrediction(BaseModel):
+    bedroom: bool = False
+    kitchen: bool = False
+    living_room: bool = False
+    bathroom: bool = False
+    basement: bool = False
