@@ -1,6 +1,7 @@
 from enum import StrEnum
-from pydantic import BaseModel, HttpUrl, Field
+from pydantic import BaseModel, HttpUrl, Field, ConfigDict
 from typing import Optional
+
 
 # Schema for renovations base
 class Renovation(BaseModel):
@@ -11,17 +12,19 @@ class Renovation(BaseModel):
     bedroom: bool = Field(default=False)
     basement: bool = Field(default=False)
 
+
 # Schema for renovations CREATE
 class RenovationCreate(BaseModel):
     pass
 
+
 # Schema for renovations READ
 class RenovationRead(Renovation):
-    renovation_id: int 
-    class Config:
-        orm_mode = True 
+    renovation_id: int
+    model_config = ConfigDict(from_attributes=True)
 
-#Schema for renovations UPDATE
+
+# Schema for renovations UPDATE
 class RenovationUpdate(BaseModel):
     bathroom: Optional[bool]
     kitchen: Optional[bool]
@@ -29,6 +32,7 @@ class RenovationUpdate(BaseModel):
     bedroom: Optional[bool]
     basement: Optional[bool]
 
-#Schema for renovations DELETE
+
+# Schema for renovations DELETE
 class RenovationsDelete(Renovation):
     renovation_id: str

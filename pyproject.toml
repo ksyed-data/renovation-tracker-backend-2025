@@ -18,7 +18,12 @@ dependencies = [
     "beautifulsoup4>=4.14.2",
     "selenium>=4.36.0",
     "webdriver-manager>=4.0.2",
-    "pyyaml>=6.0.3",
-    "docker>=7.1.0",
-    "podman>=5.6.0",
+    "ultralytics>=8.3.218",
 ]
+
+[tool.uv]
+package = true
+native-tls = true
+
+[project.scripts]
+db-create = "renovation_tracker.main:create_tables"
