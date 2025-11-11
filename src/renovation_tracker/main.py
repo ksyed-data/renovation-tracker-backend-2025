@@ -82,45 +82,42 @@ def scrape_all_images(url: str):
 
     try:
         driver.get(url)
+        time.sleep(1)  # letting the carousel load
         image_urls = set()
-        seen_slides = set()
+        loop_detect = False
 
         while True:
             # Grab all carousel slides
-            slides = driver.find_elements(By.CSS_SELECTOR, "div.primary-carousel-slide")
-
-            for slide in slides:
-                slide_id = slide.get_attribute("data-slide")
-                if not slide_id or slide_id in seen_slides:
-                    continue
-
-                # Mark slide as seen
-                seen_slides.add(slide_id)
-
-                # Grab all images in this slide
-                imgs = slide.find_elements(
-                    By.CSS_SELECTOR, "img.primary-carousel-slide-img"
-                )
-                for img in imgs:
-                    src = img.get_attribute("src")
-                    if src and src.startswith("http") and "spacer.gif" not in src:
-                        image_urls.add(src)
-
-            # If all slides have been seen, stop
-            if len(seen_slides) >= len(slides):
-                print(f"Processed all {len(slides)} slides — stopping.")
-                break
-
-            # Click the "Next" button
-            next_btn = driver.find_element(
-                By.CSS_SELECTOR, "button.primary-carousel-right-nav.right-nav"
+            imgs = driver.find_elements(
+                By.CSS_SELECTOR, "img.primary-carousel-slide-img"
             )
-            if not next_btn:
-                print("Next button not found — stopping.")
+            new_urls = []
+
+            for img in imgs:
+                src = img.get_attribute("src")
+                if src and src.startswith("http"):
+                    image_urls.add(src)
+                    new_urls.append(src)
+
+                else:
+                    # if we seen a known image immediately after click then stop looping
+                    loop_detect = True
+
+            if loop_detect:
+                print("loop detected. Therefore stopping")
                 break
 
-            driver.execute_script("arguments[0].click();", next_btn)
-            time.sleep(1.5)  # allow images to load
+            try:
+                nextbtn = driver.find_element(
+                    By.CSS_SELECTOR, "button.primary-carouseloright-nav"
+                )
+                # ActionChains(driver).move_to_element(nextbtn).click().perform()
+
+                time.sleep(1.5)  # let new slide render
+
+            except Exception:
+                print("Next button not located or disabled")
+                break
 
         print(f"Found {len(image_urls)} unique image URLs.")
         return list(image_urls)
