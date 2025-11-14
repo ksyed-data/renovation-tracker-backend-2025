@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Query, status
 from typing import Annotated
 from renovation_tracker.pydantic_models.listings import (
     Listing,
@@ -13,6 +13,7 @@ from selenium.webdriver.chrome.service import Service as ChromeService
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException
 from webdriver_manager.chrome import ChromeDriverManager
 import time
 import re
@@ -24,7 +25,7 @@ db_dependency = Annotated[Session, Depends(get_db)]
 
 
 # Create listing with custom inputs
-@router.post("/", response_model=ListingRead)
+@router.post("/", response_model=ListingRead, status_code=status.HTTP_201_CREATED)
 async def create_listing(listing: Listing, db: Annotated[Session, Depends(get_db)]):
     # Create listing using user input
     db_listing = models.Listing(**listing.dict())
@@ -39,13 +40,13 @@ async def create_listing(listing: Listing, db: Annotated[Session, Depends(get_db
 
 
 # CREATE Listing with URL also creates Photos
-@router.post("/url", response_model=ListingRead)
+@router.post("/url", response_model=ListingRead, status_code=status.HTTP_201_CREATED)
 async def create_url_listing(url: str, db: Annotated[Session, Depends(get_db)]):
     # Create listing object using web scraping helper function
     url_return = url_listing(url)
     try:
         db.add(url_return["listing"])
-        db.commit()
+        db.flush()
         db.refresh(url_return["listing"])
         for img_url in url_return["photos_list"]:
             db_photo = models.Photos(
@@ -61,7 +62,10 @@ async def create_url_listing(url: str, db: Annotated[Session, Depends(get_db)]):
 
 # READ all Listings
 @router.get("/", response_model=list[ListingRead])
-async def read_listing(db: Annotated[Session, Depends(get_db)], limit: int = 25):
+async def read_listing(
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = Query(default=25, le=100, description="limit amount of listings read"),
+):
     allListings = db.query(models.Listing).limit(limit).all()
     return allListings
 
@@ -93,7 +97,7 @@ async def update_listing(
             status_code=404, detail=f"Listing to update with id {listing_id} not found"
         )
 
-    update_listing = listing.dict(exclude_unset=True)
+    update_listing = listing.model_dump(exclude_unset=True)
 
     try:
         for keys, value in update_listing.items():
@@ -111,7 +115,7 @@ async def update_listing(
 
 
 # DELETE Listing
-@router.delete("/{listing_id}")
+@router.delete("/{listing_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_item(listing_id: int, db: Annotated[Session, Depends(get_db)]):
     listing = (
         db.query(models.Listing).filter(models.Listing.listing_id == listing_id).first()
@@ -134,55 +138,22 @@ async def delete_item(listing_id: int, db: Annotated[Session, Depends(get_db)]):
 
 # Helper function to launch web driver used in selenium
 def get_source(url: str):
+    driver = None
     try:
         driver = webdriver.Chrome(
             service=ChromeService(ChromeDriverManager().install())
         )
+        driver.set_page_load_timeout(15)
         driver.get(url)
 
         page_source = driver.page_source
 
-        # slides = []
-        # time.sleep(2)
-        # slider = driver.find_elements(
-        #     By.CSS_SELECTOR, "div[class^='primary-carousel-slide']"
-        # )
-        #  print(str(len(slider)) + "J")
-        #  for current in driver.find_elements(
-        #      By.CSS_SELECTOR, "div[class^='primary-carousel-slide']"
-        #  ):
-        #     print("KF")
-        #      time.sleep(1)
-
-        # while True:
-        #      slide = driver.find_element(
-        #         By.CSS_SELECTOR, "div[class^='primary-carousel-slide']"
-        #      )
-        #     slidess = driver.find_elements(
-        #          By.CSS_SELECTOR, "div[class^='primary-carousel-slide']"
-        #      )
-        #    print(str(len(slidess)) + "L")
-        #    slide_html = slide.get_attribute("data-slide")
-        #    if slide_html not in slides:
-        #        slides.append(slide_html)
-        #    else:
-        #        print("found")
-        #        break
-        #    next_btn = driver.find_element(
-        #        By.CSS_SELECTOR, "button.primary-carousel-right-nav.right-nav"
-        #    )
-        #   if next_btn:
-        #        next_btn.click()
-        #    else:
-        #        print("no button")
-        #       break
-        #    time.sleep(1)
-        # print(str(len(slides)))
         return page_source
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Scraping error {e}")
     finally:
-        driver.quit()
+        if driver:
+            driver.quit()
 
 
 # Helper function that takes url and returns listing object to be inerted into db and list of photo urls to be added as photos
@@ -191,18 +162,32 @@ def url_listing(url: str):
     response = get_source(url)
     # Uses beautifulsoup to obtain info from html
     soup = BeautifulSoup(response, "html.parser")
+
+    # Webscraping Address (Required)
     address = soup.find("span", {"class": "property-info-address-main"})
+    if not address:
+        raise NoSuchElementException("Address not found likely not a valid URL")
     city_state = soup.find("span", {"class": "property-info-address-citystatezip"})
     city_state_zip = ""
+    if not city_state:
+        raise NoSuchElementException("Address not found likely not a valid URL")
     for child in city_state:
         city_state_zip += child.get_text(strip=True) + " "
+
+    # Scraping description (Required)
     description = soup.find("p", {"class": "ldp-description-text"})
+    if not description:
+        raise NoSuchElementException("Description not found likely not a valid URL")
+
+    # Scraping Price (Optional)
     price = soup.find("span", {"class": "property-info-price"})
     price_numeric = (
         float(price.get_text(strip=True).replace("$", "").replace(",", ""))
         if price
         else None
     )
+
+    # Scraping number of bedrooms and bathroom (Optional)
     bedroom_bathroom = soup.find_all("span", {"class": "property-info-feature"})
     bedroom = (
         float(
@@ -224,6 +209,8 @@ def url_listing(url: str):
         and bedroom_bathroom[1].find("span", {"class": "feature-baths"})
         else None
     )
+
+    # Scraping year built (Optional)
     year_container = soup.find(
         lambda tag: tag.name == "li"
         and "amenities-detail" in tag.get("class", [])
@@ -235,18 +222,21 @@ def url_listing(url: str):
             r"Built in\s+(\d+)", year_container.get_text(strip=True)
         ).group(1)
 
+    # Scraping images (Optional)
     image_list = []
     image_container = soup.find(
         "div", {"class": "embla__container primary-carousel-container"}
     )
     slides = image_container.find_all("div") if image_container else None
-    for div in slides:
-        images = div.find_all(
-            "img", {"class": "primary-carousel-slide-img carousel-item"}
-        )
+    if slides is not None:
+        for div in slides:
+            images = div.find_all(
+                "img", {"class": "primary-carousel-slide-img carousel-item"}
+            )
         for img in images:
             image_list.append(img["src"])
 
+    # Creating listing object
     db_listing = models.Listing(
         url=url,
         address=address.get_text(strip=True) + " " + city_state_zip,
@@ -256,11 +246,11 @@ def url_listing(url: str):
         bathroom=bathroom,
         year_built=year_built,
     )
+
     return {"listing": db_listing, "photos_list": image_list}
 
-    # Example web scrapping for testing
 
-
+# Example web scraping for testing
 @router.get("/example/")
 async def scrape_web(url: str):
     response = get_source(url)
