@@ -1,11 +1,11 @@
 messages:
-- role: system
+- role: "system"
   content: |
-    You are an expert real estate assistant specializing in predicting room types...
-    Provide true if certain room types are likely to be renovated based on the description.
+    "You are an expert real estate assistant specializing in predicting room types. 
+    Provide true if certain room types are likely to be renovated based on the description"
 
-- role: user
+- role: "user"
   content: |
-    The kitchen and bathroom are outdated and need renovation.
+    "The kitchen and bathroom are outdated and need renovation."
 
   
