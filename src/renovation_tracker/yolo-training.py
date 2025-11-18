@@ -3,12 +3,12 @@ from PIL import Image
 import requests
 from io import BytesIO
 
-# model = YOLO("yolov8s-cls.pt")
-# result = model.train(
-#   data="C:/Capstone Project/renovation-tracker-backend-2025/House_Room_Dataset/train",
-#    epochs=20,
-#   imgsz=224,
-# )
+model = YOLO("yolov8s-cls.pt")
+result = model.train(
+    data="C:/Capstone Project/renovation-tracker-backend-2025/House_Room_Dataset/train",
+    epochs=20,
+    imgsz=224,
+)
 # model = YOLO("yolo_models/best.pt")
 # headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 # url = "https://images.homes.com/listings/117/9098238554-761265702/12503-flock-ct-spotsylvania-va-41.jpg"

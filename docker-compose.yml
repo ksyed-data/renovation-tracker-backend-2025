@@ -1,0 +1,48 @@
+services:
+    mysql:
+        image: mysql:8.0
+        container_name: renovation_tracker_mysql
+        restart: always
+        environment:
+            MYSQL_ROOT_PASSWORD: dev_password
+            MYSQL_DATABASE: renovation_tracker_db
+            MYSQL_USER: dev_user
+            MYSQL_PASSWORD: dev_user_password
+        ports:
+            - '3307:3306'
+        volumes:
+            - mysql_data:/var/lib/mysql
+        healthcheck:
+            test:
+                [
+                    'CMD',
+                    'mysqladmin',
+                    'ping',
+                    '-h',
+                    'localhost',
+                    '-u',
+                    'dev_user',
+                    '-pdev_user_password'
+                ]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 40s
+    api:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: renovation_tracker_api
+        environment:
+            DATABASE_URL: mysql+pymysql://dev_user:dev_user_password@mysql:3306/renovation_tracker_db
+        depends_on:
+            mysql:
+                condition: service_healthy
+        ports:
+            - '8000:8000'
+        volumes:
+            - ./src:/code/src
+        command: >
+            uv run uvicorn renovation_tracker.main:api --host 0.0.0.0 --port 8000 --reload
+volumes:
+    mysql_data:

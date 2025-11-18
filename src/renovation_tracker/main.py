@@ -1,28 +1,14 @@
 from __future__ import annotations
-from fastapi import FastAPI, Depends, HTTPException
-from database import engine, Session
-import models
-from pydantic_models.listings import Listing, ListingRead, ListingUpdate
-from pydantic_models.renovations import Renovation, RenovationRead, RenovationUpdate
-from pydantic_models.photos import Photos, PhotosRead
-from typing import Annotated
-from bs4 import BeautifulSoup
-from selenium import webdriver
-from selenium.webdriver.support import expected_conditions as EC
-import time
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.chrome.service import Service as ChromeService
-from webdriver_manager.chrome import ChromeDriverManager
-import re
-from PIL import Image
-import requests
-from io import BytesIO
+from fastapi import FastAPI
+from renovation_tracker.database import engine
+import renovation_tracker.models as models
+from renovation_tracker.routers import listings_router
+from renovation_tracker.routers import renovations_router
+from renovation_tracker.routers import photos_router
 from pydantic import BaseModel
 from typing import Any, Dict
-from ultralytics import YOLO
-from nlp_predict import extract_renovations
+from renovation_tracker.nlp_predict import extract_renovations
+from sqlalchemy import inspect
 
 
 class PredictRequest(BaseModel):
@@ -33,16 +19,28 @@ class PredictResponse(BaseModel):
     result: Dict[str, Any]
 
 
-app = FastAPI(title="Renovation Tracker API")
-yolo_model = YOLO("yolo_models/best.pt")
+api = FastAPI()
+api.include_router(listings_router.router)
+api.include_router(renovations_router.router)
+api.include_router(photos_router.router)
 
 
-@app.get("/", tags=["health"])
+def create_tables():
+    models.Base.metadata.create_all(bind=engine)
+
+
+inspector = inspect(engine)
+tables = inspector.get_table_names()
+if not tables:
+    create_tables()
+
+
+@api.get("/", tags=["health"])
 def health():
     return {"status": "ok"}
 
 
-@app.post("/predict-renovations", response_model=PredictResponse)
+@api.post("/predict-renovations", response_model=PredictResponse)
 def predict_renovations(req: PredictRequest):
     """Accepts a property description and returns structured renovation info."""
     result = extract_renovations(req.description)

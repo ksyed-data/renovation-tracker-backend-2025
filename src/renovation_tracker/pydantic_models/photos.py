@@ -1,5 +1,5 @@
 from enum import StrEnum
-from pydantic import BaseModel, HttpUrl, Field
+from pydantic import BaseModel, HttpUrl, Field, ConfigDict
 from typing import Optional
 
 
@@ -21,6 +21,9 @@ class Photos(BaseModel):
 
 class PhotosRead(Photos):
     photo_id: int
+    model_config = ConfigDict(from_attributes=True)
 
-    class Config:
-        orm_mode = True
+
+class PhotosUpdate(BaseModel):
+    url: Optional[str]
+    room_type: Optional[Room]

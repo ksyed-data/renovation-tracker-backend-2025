@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, Double, ForeignKey
 from sqlalchemy.orm import relationship
-from database import Base
+from renovation_tracker.database import Base
 
 
 class Listing(Base):
