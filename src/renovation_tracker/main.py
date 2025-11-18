@@ -7,7 +7,6 @@ from renovation_tracker.routers import renovations_router
 from renovation_tracker.routers import photos_router
 from pydantic import BaseModel
 from typing import Any, Dict
-from renovation_tracker.nlp_predict import extract_renovations
 from sqlalchemy import inspect
 
 
@@ -38,4 +37,3 @@ if not tables:
 @api.get("/", tags=["health"])
 def health():
     return {"status": "ok"}
-
