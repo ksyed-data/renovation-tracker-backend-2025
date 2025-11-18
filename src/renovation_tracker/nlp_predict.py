@@ -1,10 +1,7 @@
 # Victoria Castagnola
 #
-# This is a simple script to predict the category of a room using a pre-trained NLP model.
-# It takes in the predicted input and returns the predicted output.
-# docker file that manages dependencies and environment is needed, include instructions in readme if needed
-# use virtual environment if needed click the bottom part where it says the number
-"""nlp_predict -- ML-based extractor for renovated parts of a property."""
+# This is a script that uses OpenAI model gpt-4o-mini to infer room type from a text description.11/14/25
+#Will most likely add more functionality later on, including extracting renovation details.
 
 from __future__ import annotations
 
@@ -20,40 +17,31 @@ import openai
 
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENAI_MODEL = os.getenv(
-    "OPENAI_MODEL", "gpt-4o-mini"
-)  # change if you prefer another model
+openai.api_key = os.getenv("OPENAI_API_KEY")
+client = openai.Client(api_key= openai.api_key)
+print("Client initialized:", client is not None)
+with open('../src/renovation_tracker/prompt.yaml') as file:
+    type_predictor = yaml.safe_load(file)
 
 
-def parse_json(text: str) -> dict:
-    text = (text or "").strip()
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        # Attempt to fix common JSON issues
-        text = re.sub(r",\s*}", "}", text)  # Remove trailing commas before }
-        text = re.sub(r",\s*]", "]", text)  # Remove trailing commas before ]
-        try:
-            return json.loads(text)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Failed to parse JSON: {e}\nOriginal text: {text}")
+class RenovationPrediction(BaseModel):
+    bedroom: bool = False
+    kitchen: bool = False
+    living_room: bool = False
+    bathroom: bool = False
+    basement: bool = False
 
 
-# still kind of lame but to be honest i have been focusing on helper functions i might actually keep once vm is up and running
-# create a pydantic model that had your model definition?
-# python sdk for openai
-# get it on a route
-
-
-def extract_renovations(description: str) -> RenovationPrediction:
-    # ver 0.2
-    # still using gpt for now until we have our own model set up
-
-    # docker compose file look into can set up db for you
-    # mysql docker compose setup
-    # look up containerizing for deployment
-    messages = [{}]
+response = client.responses.parse(
+    model = "gpt-4o-mini",
+    input=[
+        type_predictor["messages"]
+        ],
+        text_format=RenovationPrediction,
+)
+event = response.output_parsed
+print("Predicted room types from description:")
+print(event)
 
 
 class RenovationPrediction(BaseModel):
