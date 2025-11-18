@@ -11,7 +11,7 @@ from datetime import datetime
 import os
 import json
 from dotenv import load_dotenv
-from pydantic import BaseModel, EmailStr, PositiveInt  # look up how to do this
+from pydantic import BaseModel, EmailStr, PositiveInt
 import yaml
 import openai
 
@@ -24,14 +24,7 @@ with open('../src/renovation_tracker/prompt.yaml') as file:
     type_predictor = yaml.safe_load(file)
 
 
-class RenovationPrediction(BaseModel):
-    bedroom: bool = False
-    kitchen: bool = False
-    living_room: bool = False
-    bathroom: bool = False
-    basement: bool = False
-
-
+#gets response from gpt-4o-mini model and predicts room types from description
 response = client.responses.parse(
     model = "gpt-4o-mini",
     input=[
@@ -40,10 +33,12 @@ response = client.responses.parse(
         text_format=RenovationPrediction,
 )
 event = response.output_parsed
+#prints out the predicted room types from the description
 print("Predicted room types from description:")
 print(event)
 
 
+#pydantic model for renovation prediction
 class RenovationPrediction(BaseModel):
     bedroom: bool = False
     kitchen: bool = False
