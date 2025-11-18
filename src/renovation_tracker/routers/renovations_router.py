@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Annotated
 from renovation_tracker.pydantic_models.renovations import (
     Renovation,
@@ -14,7 +14,7 @@ db_dependency = Annotated[Session, Depends(get_db)]
 
 
 # CREATE Renovation
-@router.post("/", response_model=RenovationRead)
+@router.post("/", response_model=RenovationRead, status_code=status.HTTP_201_CREATED)
 async def create_renovation(
     renovation: Renovation, db: Annotated[Session, Depends(get_db)]
 ):
@@ -79,7 +79,7 @@ async def update_renovation(
             status_code=404,
             detail=f"Renovation to update with id {renovation_id} not found",
         )
-    update_renovation = renovation.dict(exclude_unset=True)
+    update_renovation = renovation.model_dump(exclude_unset=True)
     try:
         for keys, value in update_renovation.items():
             setattr(findRenovation, keys, value)
@@ -95,7 +95,7 @@ async def update_renovation(
 
 
 # DELETE Renovation
-@router.delete("/{renovation_id}")
+@router.delete("/{renovation_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_renovation(
     renovation_id: int, db: Annotated[Session, Depends(get_db)]
 ):

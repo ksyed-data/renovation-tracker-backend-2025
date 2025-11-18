@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Annotated
 from renovation_tracker.pydantic_models.photos import Photos, PhotosRead, PhotosUpdate
 import renovation_tracker.models as models
@@ -16,7 +16,7 @@ with resources.path("renovation_tracker.yolo_models", "best.pt") as model_path:
 
 
 # CREATE Photo Entry with custom input
-@router.post("/", response_model=PhotosRead)
+@router.post("/", response_model=PhotosRead, status_code=status.HTTP_201_CREATED)
 async def create_photo(photo: Photos, db: Annotated[Session, Depends(get_db)]):
     db_photos = models.Photos(**photo.dict())
     try:
@@ -31,14 +31,9 @@ async def create_photo(photo: Photos, db: Annotated[Session, Depends(get_db)]):
 
 # READ photos for given listing id
 @router.get("/{listing_id}/read", response_model=list[PhotosRead])
-async def get_photos(
-    listing_id: int, db: Annotated[Session, Depends(get_db)], limit: int = 120
-):
+async def get_photos(listing_id: int, db: Annotated[Session, Depends(get_db)]):
     listing = (
-        db.query(models.Listing)
-        .filter(models.Listing.listing_id == listing_id)
-        .limit(limit)
-        .first()
+        db.query(models.Listing).filter(models.Listing.listing_id == listing_id).first()
     )
     if listing is None:
         raise HTTPException(
@@ -100,7 +95,7 @@ async def update_photo(
         raise HTTPException(
             status_code=404, detail=f"Photo to update with id {photo_id} not found"
         )
-    db_photos = photo.dict(exclude_unset=True)
+    db_photos = photo.model_dump(exclude_unset=True)
     try:
         for keys, value in db_photos.items():
             setattr(find_photo, keys, value)
@@ -116,7 +111,7 @@ async def update_photo(
 
 
 # DELETE Photo
-@router.delete("/{photo_id}")
+@router.delete("/{photo_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_photo(photo_id: int, db: Annotated[Session, Depends(get_db)]):
     find_photo = (
         db.query(models.Photos).filter(models.Photos.photo_id == photo_id).first()
