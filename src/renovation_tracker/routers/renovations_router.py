@@ -6,6 +6,7 @@ from renovation_tracker.pydantic_models.renovations import (
     RenovationUpdate,
 )
 import renovation_tracker.models as models
+from renovation_tracker.nlp_predict import nlp_predict, extract
 from renovation_tracker.database import get_db, Session
 
 router = APIRouter(prefix="/renovations")
@@ -118,3 +119,11 @@ async def delete_renovation(
             status_code=500,
             detail=f"Error occurred while deleting renovation with id {renovation_id}",
         )
+
+
+
+@router.post("/predict-renovations", response_model=Renovation)
+def predict_renovations(req: Renovation):
+    """Accepts a property description and returns structured renovation info."""
+    result = extract(req.description)
+    return {"result": result}

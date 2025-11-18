@@ -39,9 +39,3 @@ if not tables:
 def health():
     return {"status": "ok"}
 
-
-@api.post("/predict-renovations", response_model=PredictResponse)
-def predict_renovations(req: PredictRequest):
-    """Accepts a property description and returns structured renovation info."""
-    result = extract_renovations(req.description)
-    return {"result": result}
