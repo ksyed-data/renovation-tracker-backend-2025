@@ -5,7 +5,7 @@ This repo contains the source code for the back-end of the 2025 CoStar VCU Capst
 
 ## **Installation Prerequisites**
 
-### **Podman**
+### Podman
 
 The project uses podman to manage containers, follow the installation guide found here:
 
@@ -41,13 +41,13 @@ uv remove pillow
 
 ## Spin up mySQL server
 
-### Start Podman machine
+- **Start Podman machine**
 
 ```sh
 podman machine start
 ```
 
-### Spin up DB container
+- **Spin up DB container**
 
 ```sh
 podman compose up -d mysql
@@ -57,9 +57,9 @@ podman compose up -d mysql
 
 ### Run launch config with VC Code
 
-Open Run & Debug: Ctrl + Shift + D
+- Open Run & Debug: Ctrl + Shift + D
 
-Press F5 to start the server
+- Press F5 to start the server
 
 ### Access API
 
@@ -78,15 +78,3 @@ use the naming convention: {first initial}{last name} /new-feature. For example:
 Use commit messages that make sense and describe your changes. Make small commits. If your computer was lost or broke, is your branch committed and up to date?
 ### 3. Make your PR
 You want PR's to be small, digestable, and functional. Each PR needs to be reviewed by a member of your team (or CoStar sponsors). Reviewer should leave comments with suggestions and give merge approval.
-
-## Run fastAPI
-
-- Navigate to file root
-- Use these commands to build into installable package (should only have to do once unless dependencies change)
-
-uv build
-uv sync
-
-- Run with command
-
-uv run uvicorn renovation_tracker.main:api
