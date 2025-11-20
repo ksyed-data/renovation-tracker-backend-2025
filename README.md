@@ -70,6 +70,7 @@ Open your browser and visit host http://127.0.0.1:8000 to access the API
 ## Resources
 
 - [uv Documentation](https://docs.astral.sh/uv/)
+- [podman guide](https://github.com/containers/podman/blob/main/docs%2Ftutorials%2Fpodman-for-windows.md)
 
 ## Pull Requests
 ### 1. Create a branch off of main with your new feature
