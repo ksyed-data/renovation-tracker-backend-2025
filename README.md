@@ -2,11 +2,21 @@
 
 This repo contains the source code for the back-end of the 2025 CoStar VCU Capstone Project
 
+
+### **Installation Prerequisites**
+
+## **Podman**
+
+The project uses podman to manage containers, follow the steps here to download on your device
+
+https://github.com/containers/podman/blob/main/docs%2Ftutorials%2Fpodman-for-windows.md
+
+
 ## Package Management
 
 This project uses [`uv`](https://github.com/astral-sh/uv) for package management
 
-### Installation
+## Installation for Package Management
 
 ```sh
 pip install uv
@@ -28,6 +38,32 @@ Use these commands to add or remove packages from the project
 uv add pillow
 uv remove pillow
 ```
+
+### Spin up mySQL server
+
+## Start Podman machine
+
+```sh
+podman machine start
+```
+
+## Spin up DB container
+
+```sh
+podman compose up -d mysql
+```
+
+### Run FastAPI
+
+## Run launch config
+
+Ctrl + Shift + D --> F5 on VSCode
+
+## Access API
+
+Open local host http://127.0.0.1:8000 on any browser
+
+
 
 ## Resources
 
