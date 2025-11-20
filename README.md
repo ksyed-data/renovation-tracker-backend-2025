@@ -30,9 +30,9 @@ Use this command to sync your environment with all dependencies in pyproject.tom
 uv sync
 ```
 
-## Install Packages
+### Additional Packages
 
-Use these commands to add or remove packages from the project
+Use these commands to add or remove additional packages to the project
 
 ```sh
 uv add pillow
