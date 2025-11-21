@@ -27,3 +27,6 @@ native-tls = true
 
 [project.scripts]
 db-create = "renovation_tracker.main:create_tables"
+db-drop = "renovation_tracker.main:drop_tables"
+db-reset = "renovation_tracker.main:reset_db"
+db-seed = "renovation_tracker.main:seed_data"
