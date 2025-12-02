@@ -345,7 +345,12 @@ async def scrape_web(url: str):
             and "amenities-detail" in tag.get("class", [])
             and "Built in" in tag.text
         )
-        year_built = re.search(r"Built in\s+(\d+)", year_container.get_text(strip=True))
+        year_built = None
+        if year_container:
+            year_built = (
+                re.search(r"Built in\s+(\d+)", year_container.get_text(strip=True))
+            ).group(1)
+
         # scrape images dynamically
         images = scrape_carousel_images(driver)
         return {
@@ -361,7 +366,7 @@ async def scrape_web(url: str):
             + " "
             + bathroom.get_text(strip=True)
             + " "
-            + year_built.group(1)
+            + str(year_built or "")
             + " "
             + str(len(images))
             + " "
