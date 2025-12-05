@@ -11,7 +11,7 @@ from ultralytics import YOLO
 
 router = APIRouter(prefix="/photos")
 db_dependency = Annotated[Session, Depends(get_db)]
-with resources.path("renovation_tracker.yolo_models", "best.pt") as model_path:
+with resources.path("renovation_tracker.yolo_models", "new.pt") as model_path:
     yolo_model = YOLO(model_path)
 
 
