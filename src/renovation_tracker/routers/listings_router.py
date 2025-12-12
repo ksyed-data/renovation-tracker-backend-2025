@@ -136,6 +136,9 @@ async def delete_item(listing_id: int, db: Annotated[Session, Depends(get_db)]):
     return {"message": "Listing Deleted"}
 
 
+#
+
+
 # Helper function to launch web driver used in selenium
 def get_source(url: str):
     driver = None
@@ -156,154 +159,211 @@ def get_source(url: str):
             driver.quit()
 
 
+# helpers.py or at top of your routes file
+def scrape_carousel_images(driver):
+    image_list = {}
+    visited_slides = set()
+
+    # Get the next button
+    next_btn = driver.find_element(
+        By.CSS_SELECTOR, "button.primary-carousel-right-nav.right-nav"
+    )
+
+    while True:
+        # Find all slide containers
+        slides = driver.find_elements(By.CSS_SELECTOR, "div.primary-carousel-slide")
+
+        found_new_slide = False
+
+        for slide in slides:
+            slide_num = slide.get_attribute("data-slide")
+
+            # Skip if slide_num missing (shouldn’t happen) or already visited
+            if not slide_num or slide_num in visited_slides:
+                continue
+
+            # Mark new slide detected
+            found_new_slide = True
+            visited_slides.add(slide_num)
+
+            # Extract all images inside this slide
+            imgs = slide.find_elements(
+                By.CSS_SELECTOR, "img.primary-carousel-slide-img"
+            )
+
+            for img in imgs:
+                src = img.get_attribute("src") or img.get_attribute("data-src")
+                idx = img.get_attribute("data-index")
+                if src and idx:
+                    image_list[idx] = src
+
+        # No new slide found → we're looping, so stop
+        if not found_new_slide:
+            break
+
+        # Click next and wait for the slide to change
+        try:
+            driver.execute_script("arguments[0].click();", next_btn)
+
+            # Wait for new slide to appear (data-slide changes)
+            WebDriverWait(driver, 5).until(
+                lambda d: any(
+                    s.get_attribute("data-slide") not in visited_slides
+                    for s in d.find_elements(
+                        By.CSS_SELECTOR, "div.primary-carousel-slide"
+                    )
+                )
+            )
+            time.sleep(0.4)
+
+        except Exception:
+            break
+
+    return list(image_list.values())
+
+
 # Helper function that takes url and returns listing object to be inerted into db and list of photo urls to be added as photos
 def url_listing(url: str):
+    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
+    driver.set_page_load_timeout(15)
+    driver.get(url)
     # Web Scraping
-    response = get_source(url)
     # Uses beautifulsoup to obtain info from html
-    soup = BeautifulSoup(response, "html.parser")
+    try:
+        soup = BeautifulSoup(driver.page_source, "html.parser")
 
-    # Webscraping Address (Required)
-    address = soup.find("span", {"class": "property-info-address-main"})
-    if not address:
-        raise NoSuchElementException("Address not found likely not a valid URL")
-    city_state = soup.find("span", {"class": "property-info-address-citystatezip"})
-    city_state_zip = ""
-    if not city_state:
-        raise NoSuchElementException("Address not found likely not a valid URL")
-    for child in city_state:
-        city_state_zip += child.get_text(strip=True) + " "
+        # Webscraping Address (Required)
+        address = soup.find("span", {"class": "property-info-address-main"})
+        if not address:
+            raise NoSuchElementException("Address not found likely not a valid URL")
+        city_state = soup.find("span", {"class": "property-info-address-citystatezip"})
+        city_state_zip = ""
+        if not city_state:
+            raise NoSuchElementException("Address not found likely not a valid URL")
+        for child in city_state:
+            city_state_zip += child.get_text(strip=True) + " "
 
-    # Scraping description (Required)
-    description = soup.find("p", {"class": "ldp-description-text"})
-    if not description:
-        raise NoSuchElementException("Description not found likely not a valid URL")
+        # Scraping description (Required)
+        description = soup.find("p", {"class": "ldp-description-text"})
+        if not description:
+            raise NoSuchElementException("Description not found likely not a valid URL")
 
-    # Scraping Price (Optional)
-    price = soup.find("span", {"class": "property-info-price"})
-    price_numeric = (
-        float(price.get_text(strip=True).replace("$", "").replace(",", ""))
-        if price
-        else None
-    )
-
-    # Scraping number of bedrooms and bathroom (Optional)
-    bedroom_bathroom = soup.find_all("span", {"class": "property-info-feature"})
-    bedroom = (
-        float(
-            bedroom_bathroom[0]
-            .find("span", {"class": "property-info-feature-detail"})
-            .get_text(strip=True)
+        # Scraping Price (Optional)
+        price = soup.find("span", {"class": "property-info-price"})
+        price_numeric = (
+            float(price.get_text(strip=True).replace("$", "").replace(",", ""))
+            if price
+            else None
         )
-        if bedroom_bathroom
-        and bedroom_bathroom[0].find("span", {"class": "feature-beds"})
-        else None
-    )
-    bathroom = (
-        float(
-            bedroom_bathroom[1]
-            .find("span", {"class": "property-info-feature-detail"})
-            .get_text(strip=True)
-        )
-        if bedroom_bathroom
-        and bedroom_bathroom[1].find("span", {"class": "feature-baths"})
-        else None
-    )
 
-    # Scraping year built (Optional)
-    year_container = soup.find(
-        lambda tag: tag.name == "li"
-        and "amenities-detail" in tag.get("class", [])
-        and "Built in" in tag.text
-    )
-    year_built = None
-    if year_container:
-        year_built = re.search(
-            r"Built in\s+(\d+)", year_container.get_text(strip=True)
-        ).group(1)
-
-    # Scraping images (Optional)
-    image_list = []
-    image_container = soup.find(
-        "div", {"class": "embla__container primary-carousel-container"}
-    )
-    slides = image_container.find_all("div") if image_container else None
-    if slides is not None:
-        for div in slides:
-            images = div.find_all(
-                "img", {"class": "primary-carousel-slide-img carousel-item"}
+        # Scraping number of bedrooms and bathroom (Optional)
+        bedroom_bathroom = soup.find_all("span", {"class": "property-info-feature"})
+        bedroom = (
+            float(
+                bedroom_bathroom[0]
+                .find("span", {"class": "property-info-feature-detail"})
+                .get_text(strip=True)
             )
-        for img in images:
-            image_list.append(img["src"])
+            if bedroom_bathroom
+            and bedroom_bathroom[0].find("span", {"class": "feature-beds"})
+            else None
+        )
+        bathroom = (
+            float(
+                bedroom_bathroom[1]
+                .find("span", {"class": "property-info-feature-detail"})
+                .get_text(strip=True)
+            )
+            if bedroom_bathroom
+            and bedroom_bathroom[1].find("span", {"class": "feature-baths"})
+            else None
+        )
 
-    # Creating listing object
-    db_listing = models.Listing(
-        url=url,
-        address=address.get_text(strip=True) + " " + city_state_zip,
-        description=description.get_text(strip=True),
-        price=price_numeric,
-        bedroom=bedroom,
-        bathroom=bathroom,
-        year_built=year_built,
-    )
+        # Scraping year built (Optional)
+        year_container = soup.find(
+            lambda tag: tag.name == "li"
+            and "amenities-detail" in tag.get("class", [])
+            and "Built in" in tag.text
+        )
+        year_built = None
+        if year_container:
+            year_built = re.search(
+                r"Built in\s+(\d+)", year_container.get_text(strip=True)
+            ).group(1)
 
-    return {"listing": db_listing, "photos_list": image_list}
+        # Scraping images (Optional)
+        image_list = scrape_carousel_images(driver)
+
+        # Creating listing object
+        db_listing = models.Listing(
+            url=url,
+            address=address.get_text(strip=True) + " " + city_state_zip,
+            description=description.get_text(strip=True),
+            price=price_numeric,
+            bedroom=bedroom,
+            bathroom=bathroom,
+            year_built=year_built,
+        )
+
+        return {"listing": db_listing, "photos_list": image_list}
+    finally:
+        driver.quit()
 
 
 # Example web scraping for testing
 @router.get("/example/")
 async def scrape_web(url: str):
-    response = get_source(url)
-    soup = BeautifulSoup(response, "html.parser")
-    title_tag = soup.find("h1")
-    address = soup.find("span", {"class": "property-info-address-main"})
-    city_state = soup.find("span", {"class": "property-info-address-citystatezip"})
-    city_state_zip = ""
-    for child in city_state:
-        city_state_zip += child.get_text(strip=True) + " "
-    description = soup.find("p", {"class": "ldp-description-text"})
-    price = soup.find("span", {"class": "property-info-price"})
-    bedroom_bathroom = soup.find_all("span", {"class": "property-info-feature"})
-    bedroom = bedroom_bathroom[0].find(
-        "span", {"class": "property-info-feature-detail"}
-    )
-    bathroom = bedroom_bathroom[1].find(
-        "span", {"class": "property-info-feature-detail"}
-    )
-    year_container = soup.find(
-        lambda tag: tag.name == "li"
-        and "amenities-detail" in tag.get("class", [])
-        and "Built in" in tag.text
-    )
-    year_built = re.search(r"Built in\s+(\d+)", year_container.get_text(strip=True))
-    image_list = []
-    image_container = soup.find(
-        "div", {"class": "embla__container primary-carousel-container"}
-    )
-
-    slides = image_container.find_all("div")
-    for div in slides:
-        images = div.find_all(
-            "img", {"class": "primary-carousel-slide-img carousel-item"}
+    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
+    driver.set_page_load_timeout(15)
+    driver.get(url)
+    # response = get_source(url)
+    try:
+        soup = BeautifulSoup(driver.page_source, "html.parser")
+        title_tag = soup.find("h1")
+        address = soup.find("span", {"class": "property-info-address-main"})
+        city_state = soup.find("span", {"class": "property-info-address-citystatezip"})
+        city_state_zip = ""
+        for child in city_state:
+            city_state_zip += child.get_text(strip=True) + " "
+        description = soup.find("p", {"class": "ldp-description-text"})
+        price = soup.find("span", {"class": "property-info-price"})
+        bedroom_bathroom = soup.find_all("span", {"class": "property-info-feature"})
+        bedroom = bedroom_bathroom[0].find(
+            "span", {"class": "property-info-feature-detail"}
         )
-        for img in images:
-            image_list.append(img["src"])
+        bathroom = bedroom_bathroom[1].find(
+            "span", {"class": "property-info-feature-detail"}
+        )
+        year_container = soup.find(
+            lambda tag: tag.name == "li"
+            and "amenities-detail" in tag.get("class", [])
+            and "Built in" in tag.text
+        )
+        year_built = None
+        if year_container:
+            year_built = (
+                re.search(r"Built in\s+(\d+)", year_container.get_text(strip=True))
+            ).group(1)
 
-    return {
-        "response": address.get_text(strip=True)
-        + " "
-        + city_state_zip
-        + " "
-        + description.get_text(strip=True)
-        + " "
-        + price.get_text(strip=True)
-        + " "
-        + bedroom.get_text(strip=True)
-        + " "
-        + bathroom.get_text(strip=True)
-        + " "
-        + year_built.group(1)
-        + " "
-        + str(len(image_list))
-        + " "
-    }
+        # scrape images dynamically
+        images = scrape_carousel_images(driver)
+        return {
+            "response": address.get_text(strip=True)
+            + " "
+            + city_state_zip
+            + " "
+            + description.get_text(strip=True)
+            + " "
+            + price.get_text(strip=True)
+            + " "
+            + bedroom.get_text(strip=True)
+            + " "
+            + bathroom.get_text(strip=True)
+            + " "
+            + str(year_built or "")
+            + " "
+            + str(len(images))
+            + " "
+        }
+    finally:
+        driver.quit()
