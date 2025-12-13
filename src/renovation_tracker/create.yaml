@@ -1,0 +1,4 @@
+path: C:/Users/Jeremiah Robert/Desktop/CAPSTONE\renovation-tracker-backend-2025\House_Room_Dataset
+train: House_Room_Dataset
+nc:5
+names:["bathroom","bedroom",bedroom, livingroom, kitchen]'

@@ -3,7 +3,7 @@ from PIL import Image
 import requests
 from io import BytesIO
 
-model = YOLO("yolov8s-cls.pt")
+model = YOLO("src/renovation_tracker/yolo_models/best.pt")
 result = model.train(
     data="C:/Capstone Project/renovation-tracker-backend-2025/House_Room_Dataset/train",
     epochs=20,

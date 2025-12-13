@@ -10,6 +10,7 @@ class Room(StrEnum):
     BEDROOM = "Bedroom"
     BATHROOM = "Bathroom"
     KITCHEN = "Kitchen"
+    HOME_EXTERIOR = "HomeExterior"
 
 
 # Schema for photos
