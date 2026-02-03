@@ -26,7 +26,7 @@ api.include_router(renovations_router.router)
 api.include_router(photos_router.router)
 
 origins = [
-    "http://localhost:8080",
+    "http://localhost:5173",
 ]
 
 api.add_middleware(
