@@ -1,5 +1,6 @@
 from __future__ import annotations
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from renovation_tracker.database import engine, Session
 import renovation_tracker.models as models
 from renovation_tracker.routers import listings_router
@@ -23,6 +24,18 @@ api = FastAPI()
 api.include_router(listings_router.router)
 api.include_router(renovations_router.router)
 api.include_router(photos_router.router)
+
+origins = [
+    "http://localhost:5173",
+]
+
+api.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 def create_tables():
