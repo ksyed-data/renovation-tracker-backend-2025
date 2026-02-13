@@ -24,10 +24,6 @@ client = openai.Client(api_key=openai.api_key)
 print("Client initialized:", client is not None)
 with open("./src/renovation_tracker/prompt.yaml") as file:
     type_predictor = yaml.safe_load(file)
-    for message in type_predictor.get("messages", []):
-        
-        
-
 
 
 # pydantic model for renovation prediction
@@ -41,6 +37,11 @@ class RenovationPrediction(BaseModel):
 
 def extract(description: str, listing_id: int) -> Renovation:
     # gets response from gpt-4o-mini model and predicts room types from description
+    message = []
+    for msg in type_predictor["messages"]:
+        content = msg["content"].replace("{description}", description)
+        message.append({"role": msg["role"], "content": content})
+
     response = client.responses.parse(
         model="gpt-4o-mini",
         input=[type_predictor["messages"]],
@@ -48,14 +49,14 @@ def extract(description: str, listing_id: int) -> Renovation:
     )
     event = response.output_parsed
     # prints out the predicted room types from the description
-    print("Predicted room types from description:")
-    print(event)
+    # print("Predicted room types from description:")
+    # print(event)
 
     return RenovationCreate(
-        listing_id =listing_id, 
-        bathroom = event.bathroom, 
-        kitchen = event.kitchen,
-        living_room = event.living_room,
-        bedroom = event.bedroom,
-        basement= event.basement
+        listing_id=listing_id,
+        bathroom=event.bathroom,
+        kitchen=event.kitchen,
+        living_room=event.living_room,
+        bedroom=event.bedroom,
+        basement=event.basement,
     )
