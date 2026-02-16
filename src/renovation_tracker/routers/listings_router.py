@@ -42,8 +42,16 @@ async def create_listing(listing: Listing, db: Annotated[Session, Depends(get_db
 # CREATE Listing with URL also creates Photos
 @router.post("/url", response_model=ListingRead, status_code=status.HTTP_201_CREATED)
 async def create_url_listing(url: str, db: Annotated[Session, Depends(get_db)]):
+
+    # Looks for listing in DB first
+    find_listing = db.query(models.Listing).filter(models.Listing.url == url).first()
+    if find_listing:
+        print("found")
+        return find_listing
+
     # Create listing object using web scraping helper function
     url_return = url_listing(url)
+
     try:
         db.add(url_return["listing"])
         db.flush()
@@ -281,9 +289,11 @@ def url_listing(url: str):
 
         # Scraping year built (Optional)
         year_container = soup.find(
-            lambda tag: tag.name == "li"
-            and "amenities-detail" in tag.get("class", [])
-            and "Built in" in tag.text
+            lambda tag: (
+                tag.name == "li"
+                and "amenities-detail" in tag.get("class", [])
+                and "Built in" in tag.text
+            )
         )
         year_built = None
         if year_container:
@@ -335,9 +345,11 @@ async def scrape_web(url: str):
             "span", {"class": "property-info-feature-detail"}
         )
         year_container = soup.find(
-            lambda tag: tag.name == "li"
-            and "amenities-detail" in tag.get("class", [])
-            and "Built in" in tag.text
+            lambda tag: (
+                tag.name == "li"
+                and "amenities-detail" in tag.get("class", [])
+                and "Built in" in tag.text
+            )
         )
         year_built = None
         if year_container:
