@@ -14,7 +14,7 @@ class Renovation(BaseModel):
 
 
 # Schema for renovations CREATE
-class RenovationCreate(BaseModel):
+class RenovationCreate(Renovation):
     pass
 
 

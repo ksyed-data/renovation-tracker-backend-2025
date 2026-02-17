@@ -46,7 +46,6 @@ async def create_url_listing(url: str, db: Annotated[Session, Depends(get_db)]):
     # Looks for listing in DB first
     find_listing = db.query(models.Listing).filter(models.Listing.url == url).first()
     if find_listing:
-        print("found")
         return find_listing
 
     # Create listing object using web scraping helper function
