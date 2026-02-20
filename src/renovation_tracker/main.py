@@ -27,6 +27,8 @@ api.include_router(photos_router.router)
 
 origins = [
     "http://localhost:5173",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
 ]
 
 api.add_middleware(
