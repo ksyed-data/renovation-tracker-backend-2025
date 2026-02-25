@@ -12,6 +12,7 @@ import yaml
 from dotenv import load_dotenv
 import openai
 import os
+from pathlib import Path
 
 
 router = APIRouter(prefix="/renovations")
@@ -22,7 +23,8 @@ load_dotenv()
 # ensure client is intialized properly
 openai.api_key = os.getenv("OPENAI_API_KEY")
 client = openai.Client(api_key=openai.api_key)
-with open("./src/renovation_tracker/prompt.yaml") as file:
+yaml_path = Path(__file__).parent.parent / "prompt.yaml"
+with open(yaml_path) as file:
     type_predictor = yaml.safe_load(file)
 
 
@@ -31,7 +33,7 @@ with open("./src/renovation_tracker/prompt.yaml") as file:
 async def create_renovation(
     renovation: Renovation, db: Annotated[Session, Depends(get_db)]
 ):
-    db_renovation = models.Renovations(**renovation.dict())
+    db_renovation = models.Renovations(**renovation.model_dump)
     return renovation_helper(db_renovation, db)
 
 
@@ -71,6 +73,7 @@ async def get_renovation(listing_id: int, db: Annotated[Session, Depends(get_db)
         renovation = extract(listing.description, listing_id)
         db_renovation = models.Renovations(**renovation.model_dump())
         renovation_helper(db_renovation, db)
+        db.refresh(listing)
     return listing.renovations
 
 
@@ -162,14 +165,13 @@ def extract(description: str, listing_id: int) -> RenovationCreate:
         input=message,
         text_format=RenovationCreate,
     )
-    renovation = response.output_parsed
-    renovation.listing_id = listing_id
+    renovation = Renovation(
+        **response.output_parsed.model_dump(), listing_id=listing_id
+    )
     return renovation
 
 
-def renovation_helper(
-    renovation: models.Renovations, db: Annotated[Session, Depends(get_db)]
-):
+def renovation_helper(renovation: models.Renovations, db: Session):
     try:
         db.add(renovation)
         db.flush()
