@@ -7,7 +7,7 @@ class Listing(Base):
     __tablename__ = "listings"
 
     listing_id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    url = Column(String(100), nullable=False)
+    url = Column(String(100), nullable=False, unique=True)
     address = Column(String(100), unique=True, nullable=False)
     description = Column(String(5000), nullable=False)
     price = Column(Double)

@@ -15,7 +15,11 @@ class Renovation(BaseModel):
 
 # Schema for renovations CREATE
 class RenovationCreate(BaseModel):
-    pass
+    bathroom: bool = Field(default=False)
+    kitchen: bool = Field(default=False)
+    living_room: bool = Field(default=False)
+    bedroom: bool = Field(default=False)
+    basement: bool = Field(default=False)
 
 
 # Schema for renovations READ
