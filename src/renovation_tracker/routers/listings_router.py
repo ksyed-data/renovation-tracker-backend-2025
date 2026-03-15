@@ -49,7 +49,12 @@ async def create_url_listing(url: str, db: Annotated[Session, Depends(get_db)]):
         return find_listing
 
     # Create listing object using web scraping helper function
-    url_return = url_listing(url)
+    try:
+        url_return = url_listing(url)
+    except Exception as e:
+        raise HTTPException(
+            status_code=404, detail=f"Error scraping url may not be valid: {e}"
+        )
 
     try:
         db.add(url_return["listing"])
@@ -229,6 +234,40 @@ def scrape_carousel_images(driver):
     return list(image_list.values())
 
 
+# helpers.py or at top of your routes file
+def scrape_carousel_images2(driver):
+    image_list = []
+
+    # Get the next button
+    next_btn = driver.find_element(
+        By.CSS_SELECTOR, "button.primary-carousel-right-nav.right-nav"
+    )
+
+    container = driver.find_element(
+        By.CSS_SELECTOR, "div.embla__container.primary-carousel-container"
+    )
+    for i in range(7):
+        images = container.find_elements(
+            By.CSS_SELECTOR, "img.primary-carousel-slide-img.carousel-item"
+        )
+        for img in images:
+            src = img.get_attribute("src")
+            if (
+                src != "/assets/images/spacer.gif"
+                and src != "https://www.homes.com/assets/images/spacer.gif"
+                and src not in image_list
+            ):
+                image_list.append(src)
+        try:
+            driver.execute_script("arguments[0].click();", next_btn)
+            time.sleep(0.5)
+
+        except Exception:
+            break
+
+    return image_list
+
+
 # Helper function that takes url and returns listing object to be inerted into db and list of photo urls to be added as photos
 def url_listing(url: str):
     driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
@@ -301,7 +340,7 @@ def url_listing(url: str):
             ).group(1)
 
         # Scraping images (Optional)
-        image_list = scrape_carousel_images(driver)
+        image_list = scrape_carousel_images2(driver)
 
         # Creating listing object
         db_listing = models.Listing(
@@ -357,24 +396,7 @@ async def scrape_web(url: str):
             ).group(1)
 
         # scrape images dynamically
-        images = scrape_carousel_images(driver)
-        return {
-            "response": address.get_text(strip=True)
-            + " "
-            + city_state_zip
-            + " "
-            + description.get_text(strip=True)
-            + " "
-            + price.get_text(strip=True)
-            + " "
-            + bedroom.get_text(strip=True)
-            + " "
-            + bathroom.get_text(strip=True)
-            + " "
-            + str(year_built or "")
-            + " "
-            + str(len(images))
-            + " "
-        }
+        images = scrape_carousel_images2(driver)
+        return {"images": images}
     finally:
         driver.quit()
