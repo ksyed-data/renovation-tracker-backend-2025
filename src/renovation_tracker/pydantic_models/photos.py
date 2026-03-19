@@ -6,7 +6,7 @@ from typing import Optional
 # Enum for bedrooms in photos
 class Room(StrEnum):
     LIVING_ROOM = "Livingroom"
-    DINING_ROOM = "Dining"
+    DINING_ROOM = "Dinning"
     BEDROOM = "Bedroom"
     BATHROOM = "Bathroom"
     KITCHEN = "Kitchen"
