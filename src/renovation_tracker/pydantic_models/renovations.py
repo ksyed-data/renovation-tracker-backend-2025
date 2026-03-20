@@ -11,6 +11,9 @@ class Renovation(BaseModel):
     living_room: bool = Field(default=False)
     bedroom: bool = Field(default=False)
     basement: bool = Field(default=False)
+    laundry: bool = Field(default=False)
+    hallway: bool = Field(default=False)
+    home_exterior: bool = Field(default=False)
 
 
 # Schema for renovations CREATE
@@ -20,6 +23,9 @@ class RenovationCreate(BaseModel):
     living_room: bool = Field(default=False)
     bedroom: bool = Field(default=False)
     basement: bool = Field(default=False)
+    laundry: bool = Field(default=False)
+    hallway: bool = Field(default=False)
+    home_exterior: bool = Field(default=False)
 
 
 # Schema for renovations READ
@@ -35,6 +41,9 @@ class RenovationUpdate(BaseModel):
     living_room: Optional[bool]
     bedroom: Optional[bool]
     basement: Optional[bool]
+    laundry: Optional[bool]
+    hallway: Optional[bool]
+    home_exterior: Optional[bool]
 
 
 # Schema for renovations DELETE
