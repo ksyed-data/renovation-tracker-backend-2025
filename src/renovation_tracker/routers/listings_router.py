@@ -62,7 +62,9 @@ async def create_url_listing(url: str, db: Annotated[Session, Depends(get_db)]):
         db.refresh(url_return["listing"])
         for img_url in url_return["photos_list"]:
             db_photo = models.Photos(
-                url=img_url, listing_id=url_return["listing"].listing_id
+                url=img_url["url"],
+                listing_id=url_return["listing"].listing_id,
+                isHistorical=img_url["historical"],
             )
             db.add(db_photo)
         db.commit()
@@ -237,15 +239,20 @@ def scrape_carousel_images(driver):
 # helpers.py or at top of your routes file
 def scrape_carousel_images2(driver):
     image_list = []
+    url_list = []
 
     # Get the next button
-    next_btn = driver.find_element(
-        By.CSS_SELECTOR, "button.primary-carousel-right-nav.right-nav"
-    )
+    try:
+        next_btn = driver.find_element(
+            By.CSS_SELECTOR, "button.primary-carousel-right-nav.right-nav"
+        )
+    except NoSuchElementException:
+        next_btn = None
 
     container = driver.find_element(
         By.CSS_SELECTOR, "div.embla__container.primary-carousel-container"
     )
+
     for i in range(7):
         images = container.find_elements(
             By.CSS_SELECTOR, "img.primary-carousel-slide-img.carousel-item"
@@ -255,15 +262,69 @@ def scrape_carousel_images2(driver):
             if (
                 src != "/assets/images/spacer.gif"
                 and src != "https://www.homes.com/assets/images/spacer.gif"
-                and src not in image_list
+                and src[-6:] not in url_list
+                and src[-3:] == "jpg"
             ):
-                image_list.append(src)
+                image_list.append({"url": src, "historical": False})
+                url_list.append(src[-6:])
         try:
             driver.execute_script("arguments[0].click();", next_btn)
-            time.sleep(0.5)
 
         except Exception:
             break
+
+    images_container = driver.find_element(
+        By.CSS_SELECTOR, ".primary-carousel-slide-img.hero-carousel-item"
+    )
+
+    driver.execute_script("arguments[0].click();", images_container)
+    counter = WebDriverWait(driver, 10).until(
+        EC.visibility_of_element_located((By.CSS_SELECTOR, "span.counter"))
+    )
+    amount = int(counter.text.split("/")[1])
+
+    try:
+        historical_images = driver.find_elements(
+            By.CSS_SELECTOR, "figure.embla__slide__img"
+        )
+
+        current = 1
+        try:
+            nxt_btn = driver.find_element(
+                By.CSS_SELECTOR, "button.embla__nav.right-nav"
+            )
+        except Exception:
+            nxt_btn = None
+
+        for fig in historical_images:
+            if current > amount:
+                img = fig.find_element(By.CSS_SELECTOR, "img")
+                if nxt_btn:
+                    driver.execute_script("arguments[0].click();", nxt_btn)
+                src = img.get_attribute("src")
+                if src[-6:] not in url_list and src[-3:] == "jpg":
+                    image_list.append({"url": src, "historical": True})
+                    url_list.append(src[-6:])
+            else:
+                img = fig.find_element(By.CSS_SELECTOR, "img")
+                if nxt_btn:
+                    driver.execute_script("arguments[0].click();", nxt_btn)
+                src = img.get_attribute("src")
+                if src[-6:] not in url_list and src[-3:] == "jpg":
+                    image_list.append({"url": src, "historical": False})
+                    url_list.append(src[-6:])
+                if current == amount:
+                    history = WebDriverWait(driver, 10).until(
+                        EC.element_to_be_clickable(
+                            (By.XPATH, "//button[contains(., 'Historical')]")
+                        )
+                    )
+                    driver.execute_script("arguments[0].click();", history)
+
+            current += 1
+
+    except Exception:
+        print("No historical button found")
 
     return image_list
 
@@ -340,6 +401,7 @@ def url_listing(url: str):
             ).group(1)
 
         # Scraping images (Optional)
+
         image_list = scrape_carousel_images2(driver)
 
         # Creating listing object

@@ -4,6 +4,9 @@ import requests
 from io import BytesIO
 
 model = YOLO("src/renovation_tracker/yolo_models/yolov8s-cls.pt")
+# metrics = model.val(
+#    data="C:/Capstone Project/renovation-tracker-backend-2025/House_Room_Dataset/train_split"
+# )
 result = model.train(
     data="C:/Capstone Project/renovation-tracker-backend-2025/House_Room_Dataset/train",
     epochs=30,

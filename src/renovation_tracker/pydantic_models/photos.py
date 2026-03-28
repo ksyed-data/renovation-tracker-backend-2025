@@ -11,8 +11,9 @@ class Room(StrEnum):
     BATHROOM = "Bathroom"
     KITCHEN = "Kitchen"
     HOME_EXTERIOR = "HomeExterior"
-    LAUNDRY_ROOM = "Laundry"
     HALLWAY = "Hallway"
+    LAUNDRY = "Laundry"
+    OTHER = "Other"
 
 
 # Schema for photos
@@ -20,6 +21,7 @@ class Photos(BaseModel):
     listing_id: int
     url: str
     room_type: Optional[Room]
+    isHistorical: bool
 
 
 class PhotosRead(Photos):
@@ -30,3 +32,4 @@ class PhotosRead(Photos):
 class PhotosUpdate(BaseModel):
     url: Optional[str]
     room_type: Optional[Room]
+    isHistorical: Optional[bool]
