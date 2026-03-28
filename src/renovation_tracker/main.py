@@ -85,6 +85,8 @@ tables = inspector.get_table_names()
 if not tables:
     create_tables()
 
+reset_db()
+
 
 @api.get("/", tags=["health"])
 def health():

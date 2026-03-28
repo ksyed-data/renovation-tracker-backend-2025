@@ -1,3 +1,5 @@
+import base64
+
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Annotated
 from renovation_tracker.pydantic_models.photos import Photos, PhotosRead, PhotosUpdate
@@ -8,10 +10,14 @@ import requests
 from io import BytesIO
 import importlib.resources as resources
 from ultralytics import YOLO
+import openai
+import os
 
 router = APIRouter(prefix="/photos")
 db_dependency = Annotated[Session, Depends(get_db)]
-with resources.path("renovation_tracker.yolo_models", "bestCurrent.pt") as model_path:
+openai.api_key = os.getenv("OPENAI_API_KEY")
+client = openai.Client(api_key=openai.api_key)
+with resources.path("renovation_tracker.yolo_models", "current.pt") as model_path:
     yolo_model = YOLO(model_path)
 
 
@@ -77,7 +83,7 @@ async def photo_inference(photo_id: int, db: Annotated[Session, Depends(get_db)]
             db.rollback()
             raise HTTPException(
                 status_code=500,
-                detail=f"Error occurred while updating photo with id {photo_id}",
+                detail=f"Error occurred while updating photo with id {photo_id} error: {e}",
             )
     else:
         return findPhoto.room_type
@@ -129,7 +135,7 @@ async def delete_photo(photo_id: int, db: Annotated[Session, Depends(get_db)]):
         db.rollback()
         raise HTTPException(
             status_code=500,
-            detail=f"Error occurred while deleting photo with id {photo_id}",
+            detail=f"Error occurred while deleting photo with id {photo_id} error: {e}",
         )
 
 
@@ -139,5 +145,35 @@ def get_room(url: str):
     getImage = requests.get(url, headers=headers, stream=True, timeout=10)
     image = Image.open(BytesIO(getImage.content))
     results = yolo_model.predict(image)
+    confidence = results[0].probs.top1conf.item()
     top1 = results[0].probs.top1
+    print(confidence)
+    if confidence < 0.85:
+        print("low confidence, using LLM")
+        return get_room_LLM(getImage.content)
     return results[0].names[top1]
+
+
+def get_room_LLM(image):
+    img_base64 = base64.b64encode(image).decode("utf-8")
+    response = client.responses.create(
+        model="gpt-4o-mini",
+        input=[
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "input_text",
+                        "text": (
+                            "Classify the image into exactly one room type from this list: Livingroom, Dining, Bedroom, Bathroom, Kitchen, HomeExterior, Hallway, Laundry, Other. Return only the room type."
+                        ),
+                    },
+                    {
+                        "type": "input_image",
+                        "image_url": f"data:image/jpeg;base64,{img_base64}",
+                    },
+                ],
+            }
+        ],
+    )
+    return response.output_text
