@@ -12,7 +12,7 @@ class Room(StrEnum):
     KITCHEN = "Kitchen"
     HOME_EXTERIOR = "HomeExterior"
     HALLWAY = "Hallway"
-    LAUNDRY = "Laundry"
+    LAUNDRY_ROOM = "Laundry"
     OTHER = "Other"
 
 
