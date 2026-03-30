@@ -25,7 +25,9 @@ class Renovations(Base):
     kitchen = Column(Boolean, default=False)
     living_room = Column(Boolean, default=False)
     bathroom = Column(Boolean, default=False)
-    basement = Column(Boolean, default=False)
+    hallway = Column(Boolean, default=False)
+    home_exterior = Column(Boolean, default=False)
+    dining_room = Column(Boolean, default=False)
     listing_id = Column(Integer, ForeignKey("listings.listing_id"))
     listing = relationship("Listing", back_populates="renovations")
 
@@ -37,3 +39,4 @@ class Photos(Base):
     room_type = Column(String(100))
     listing_id = Column(Integer, ForeignKey("listings.listing_id"))
     listing = relationship("Listing", back_populates="photos")
+    isHistorical = Column(Boolean, default=False)
