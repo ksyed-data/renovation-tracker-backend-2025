@@ -241,64 +241,35 @@ def scrape_carousel_images2(driver):
     image_list = []
     url_list = []
 
-    # Get the next button
-    try:
-        next_btn = driver.find_element(
-            By.CSS_SELECTOR, "button.primary-carousel-right-nav.right-nav"
-        )
-    except NoSuchElementException:
-        next_btn = None
-
-    container = driver.find_element(
-        By.CSS_SELECTOR, "div.embla__container.primary-carousel-container"
+    hero_candidates = driver.find_elements(
+        By.CSS_SELECTOR, "img.primary-carousel-slide-img"
     )
 
-    for i in range(7):
-        images = container.find_elements(
-            By.CSS_SELECTOR, "img.primary-carousel-slide-img.carousel-item"
-        )
-        for img in images:
-            src = img.get_attribute("src")
-            if (
-                src != "/assets/images/spacer.gif"
-                and src != "https://www.homes.com/assets/images/spacer.gif"
-                and src[-6:] not in url_list
-                and src[-3:] == "jpg"
-            ):
-                image_list.append({"url": src, "historical": False})
-                url_list.append(src[-6:])
-        try:
-            driver.execute_script("arguments[0].click();", next_btn)
-
-        except Exception:
+    for img in hero_candidates:
+        if img.is_displayed():
+            driver.execute_script("arguments[0].click();", img)
             break
-
-    images_container = driver.find_element(
-        By.CSS_SELECTOR, ".primary-carousel-slide-img.hero-carousel-item"
-    )
-
-    driver.execute_script("arguments[0].click();", images_container)
     counter = WebDriverWait(driver, 10).until(
         EC.visibility_of_element_located((By.CSS_SELECTOR, "span.counter"))
     )
     amount = int(counter.text.split("/")[1])
-
+    time.sleep(0.5)
     try:
         historical_images = driver.find_elements(
-            By.CSS_SELECTOR, "figure.embla__slide__img"
+            By.CSS_SELECTOR, "figure.embla__slide__img img"
         )
-
         current = 1
         try:
-            nxt_btn = driver.find_element(
-                By.CSS_SELECTOR, "button.embla__nav.right-nav"
+            nxt_btn = WebDriverWait(driver, 10).until(
+                EC.visibility_of_element_located(
+                    (By.CSS_SELECTOR, "button.embla__nav.right-nav")
+                )
             )
         except Exception:
             nxt_btn = None
 
-        for fig in historical_images:
+        for img in historical_images:
             if current > amount:
-                img = fig.find_element(By.CSS_SELECTOR, "img")
                 if nxt_btn:
                     driver.execute_script("arguments[0].click();", nxt_btn)
                 src = img.get_attribute("src")
@@ -306,7 +277,6 @@ def scrape_carousel_images2(driver):
                     image_list.append({"url": src, "historical": True})
                     url_list.append(src[-6:])
             else:
-                img = fig.find_element(By.CSS_SELECTOR, "img")
                 if nxt_btn:
                     driver.execute_script("arguments[0].click();", nxt_btn)
                 src = img.get_attribute("src")
@@ -314,7 +284,7 @@ def scrape_carousel_images2(driver):
                     image_list.append({"url": src, "historical": False})
                     url_list.append(src[-6:])
                 if current == amount:
-                    history = WebDriverWait(driver, 10).until(
+                    history = WebDriverWait(driver, 5).until(
                         EC.element_to_be_clickable(
                             (By.XPATH, "//button[contains(., 'Historical')]")
                         )
@@ -323,8 +293,8 @@ def scrape_carousel_images2(driver):
 
             current += 1
 
-    except Exception:
-        print("No historical button found")
+    except Exception as e:
+        print("No historical button found ")
 
     return image_list
 
@@ -416,49 +386,5 @@ def url_listing(url: str):
         )
 
         return {"listing": db_listing, "photos_list": image_list}
-    finally:
-        driver.quit()
-
-
-# Example web scraping for testing
-@router.get("/example/")
-async def scrape_web(url: str):
-    driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()))
-    driver.set_page_load_timeout(15)
-    driver.get(url)
-    # response = get_source(url)
-    try:
-        soup = BeautifulSoup(driver.page_source, "html.parser")
-        title_tag = soup.find("h1")
-        address = soup.find("span", {"class": "property-info-address-main"})
-        city_state = soup.find("span", {"class": "property-info-address-citystatezip"})
-        city_state_zip = ""
-        for child in city_state:
-            city_state_zip += child.get_text(strip=True) + " "
-        description = soup.find("p", {"class": "ldp-description-text"})
-        price = soup.find("span", {"class": "property-info-price"})
-        bedroom_bathroom = soup.find_all("span", {"class": "property-info-feature"})
-        bedroom = bedroom_bathroom[0].find(
-            "span", {"class": "property-info-feature-detail"}
-        )
-        bathroom = bedroom_bathroom[1].find(
-            "span", {"class": "property-info-feature-detail"}
-        )
-        year_container = soup.find(
-            lambda tag: (
-                tag.name == "li"
-                and "amenities-detail" in tag.get("class", [])
-                and "Built in" in tag.text
-            )
-        )
-        year_built = None
-        if year_container:
-            year_built = (
-                re.search(r"Built in\s+(\d+)", year_container.get_text(strip=True))
-            ).group(1)
-
-        # scrape images dynamically
-        images = scrape_carousel_images2(driver)
-        return {"images": images}
     finally:
         driver.quit()
