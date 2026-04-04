@@ -241,14 +241,19 @@ def scrape_carousel_images2(driver):
     image_list = []
     url_list = []
 
+    time.sleep(0.3)
     hero_candidates = driver.find_elements(
-        By.CSS_SELECTOR, "img.primary-carousel-slide-img"
+        By.CSS_SELECTOR, "img.primary-carousel-slide-img.hero-carousel-item"
     )
-
+    print(f"Found {len(hero_candidates)} hero candidates")
     for img in hero_candidates:
         if img.is_displayed():
+            print("Clicking hero image")
             driver.execute_script("arguments[0].click();", img)
             break
+        else:
+            print("Hero candidate not displayed, skipping")
+
     counter = WebDriverWait(driver, 10).until(
         EC.visibility_of_element_located((By.CSS_SELECTOR, "span.counter"))
     )

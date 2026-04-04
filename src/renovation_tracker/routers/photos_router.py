@@ -148,7 +148,7 @@ def get_room(url: str):
     confidence = results[0].probs.top1conf.item()
     top1 = results[0].probs.top1
     print(confidence)
-    if confidence < 0.85:
+    if confidence < 0.5:
         print("low confidence, using LLM")
         return get_room_LLM(getImage.content)
     return results[0].names[top1]
