@@ -1,4 +1,5 @@
 import base64
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from fastapi import APIRouter, HTTPException, Depends, status
 from typing import Annotated
@@ -17,7 +18,7 @@ router = APIRouter(prefix="/photos")
 db_dependency = Annotated[Session, Depends(get_db)]
 openai.api_key = os.getenv("OPENAI_API_KEY")
 client = openai.Client(api_key=openai.api_key)
-with resources.path("renovation_tracker.yolo_models", "current.pt") as model_path:
+with resources.path("renovation_tracker.yolo_models", "final.pt") as model_path:
     yolo_model = YOLO(model_path)
 
 
@@ -87,6 +88,38 @@ async def photo_inference(photo_id: int, db: Annotated[Session, Depends(get_db)]
             )
     else:
         return findPhoto.room_type
+
+
+@router.put("/inferenceAll")
+async def photo_inference_all(listing_id: int, db: Annotated[Session, Depends(get_db)]):
+    listing = (
+        db.query(models.Listing).filter(models.Listing.listing_id == listing_id).first()
+    )
+    if listing is None:
+        raise HTTPException(
+            status_code=404, detail=f"Listing with id {listing_id} not found"
+        )
+    photos = listing.photos
+
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        future_to_photo = {
+            executor.submit(get_room, photo.url): photo
+            for photo in photos
+            if photo.room_type is None
+        }
+        for future in as_completed(future_to_photo):
+            photo = future_to_photo[future]
+            try:
+                room = future.result()
+                setattr(photo, "room_type", room)
+                db.commit()
+                db.refresh(photo)
+            except Exception as e:
+                db.rollback()
+                print(
+                    f"Error occurred while updating photo with id {photo.photo_id} error: {e}"
+                )
+    return listing.photos
 
 
 # Update Photo Entry with custom input
