@@ -101,7 +101,7 @@ async def photo_inference_all(listing_id: int, db: Annotated[Session, Depends(ge
         )
     photos = listing.photos
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=10) as executor:
         future_to_photo = {
             executor.submit(get_room, photo.url): photo
             for photo in photos
